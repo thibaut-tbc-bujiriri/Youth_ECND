@@ -1,121 +1,252 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { SystemSettingsProvider, useSystemSettings } from "./context/SystemSettingsContext";
+import Loading from "./components/Loading";
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Maintenance from "./pages/Maintenance";
 
-function App() {
-  const [count, setCount] = useState(0)
+import AdminLayout from "./layouts/AdminLayout";
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminUtilisateurs from "./pages/admin/Utilisateurs";
+import AdminJeunes from "./pages/admin/Jeunes";
+import AdminContributions from "./pages/admin/Contributions";
+import AdminActivites from "./pages/admin/Activites";
+import AdminAudit from "./pages/admin/Audit";
+import AdminSettings from "./pages/admin/Settings";
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+import MemberLayout from "./layouts/MemberLayout";
+import MemberDashboard from "./pages/member/Dashboard";
+import MemberProfile from "./pages/member/Profile";
+import MemberContributions from "./pages/member/Contributions";
+import MemberStats from "./pages/member/Stats";
 
-      <div className="ticks"></div>
+function MaintenanceGate({ children, allowDuringMaintenance = false }) {
+  const { role } = useAuth();
+  const { settings, loading } = useSystemSettings();
+  const localRole = localStorage.getItem("role");
+  const currentRole = role || localRole;
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+  if (loading) return <Loading message="Chargement du systeme..." />;
+  if (!settings.maintenance_mode) return children;
+  if (currentRole === "admin") return children;
+  if (allowDuringMaintenance) return children;
+  return <Navigate to="/maintenance" replace />;
 }
 
-export default App
+function RoleGate({ allow, children }) {
+  const { loading, role } = useAuth();
+  const localRole = localStorage.getItem("role");
+  const currentRole = role || localRole;
+
+  if (loading) return <Loading message="Chargement du profil..." />;
+  if (!allow.includes(currentRole)) return <Navigate to="/login" replace />;
+  return children;
+}
+
+function AppRoutes() {
+  const { loading, role } = useAuth();
+  const { settings, loading: settingsLoading } = useSystemSettings();
+  const localRole = localStorage.getItem("role");
+  const currentRole = role || localRole;
+
+  if (settingsLoading) {
+    return <Loading message="Chargement des parametres..." />;
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <MaintenanceGate>
+            <Landing />
+          </MaintenanceGate>
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          <MaintenanceGate allowDuringMaintenance>
+            <Login />
+          </MaintenanceGate>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          settings.registrations_open ? (
+            <MaintenanceGate>
+              <Register />
+            </MaintenanceGate>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route path="/maintenance" element={<Maintenance />} />
+
+      <Route
+        path="/dashboard"
+        element={
+          loading ? (
+            <Loading message="Chargement du profil..." />
+          ) : settings.maintenance_mode && currentRole !== "admin" ? (
+            <Navigate to="/maintenance" replace />
+          ) : (
+            <Navigate to={currentRole === "admin" ? "/admin/dashboard" : "/member/dashboard"} replace />
+          )
+        }
+      />
+
+      <Route
+        path="/admin/dashboard"
+        element={
+          <RoleGate allow={["admin"]}>
+            <MaintenanceGate allowDuringMaintenance>
+              <AdminLayout>
+                <AdminDashboard />
+              </AdminLayout>
+            </MaintenanceGate>
+          </RoleGate>
+        }
+      />
+      <Route
+        path="/admin/utilisateurs"
+        element={
+          <RoleGate allow={["admin"]}>
+            <MaintenanceGate allowDuringMaintenance>
+              <AdminLayout>
+                <AdminUtilisateurs />
+              </AdminLayout>
+            </MaintenanceGate>
+          </RoleGate>
+        }
+      />
+      <Route
+        path="/admin/jeunes"
+        element={
+          <RoleGate allow={["admin"]}>
+            <MaintenanceGate allowDuringMaintenance>
+              <AdminLayout>
+                <AdminJeunes />
+              </AdminLayout>
+            </MaintenanceGate>
+          </RoleGate>
+        }
+      />
+      <Route
+        path="/admin/contributions"
+        element={
+          <RoleGate allow={["admin"]}>
+            <MaintenanceGate allowDuringMaintenance>
+              <AdminLayout>
+                <AdminContributions />
+              </AdminLayout>
+            </MaintenanceGate>
+          </RoleGate>
+        }
+      />
+      <Route
+        path="/admin/activites"
+        element={
+          <RoleGate allow={["admin"]}>
+            <MaintenanceGate allowDuringMaintenance>
+              <AdminLayout>
+                <AdminActivites />
+              </AdminLayout>
+            </MaintenanceGate>
+          </RoleGate>
+        }
+      />
+      <Route
+        path="/admin/audit"
+        element={
+          <RoleGate allow={["admin"]}>
+            <MaintenanceGate allowDuringMaintenance>
+              <AdminLayout>
+                <AdminAudit />
+              </AdminLayout>
+            </MaintenanceGate>
+          </RoleGate>
+        }
+      />
+      <Route
+        path="/admin/settings"
+        element={
+          <RoleGate allow={["admin"]}>
+            <MaintenanceGate allowDuringMaintenance>
+              <AdminLayout>
+                <AdminSettings />
+              </AdminLayout>
+            </MaintenanceGate>
+          </RoleGate>
+        }
+      />
+
+      <Route
+        path="/member/dashboard"
+        element={
+          <RoleGate allow={["membre"]}>
+            <MaintenanceGate>
+              <MemberLayout>
+                <MemberDashboard />
+              </MemberLayout>
+            </MaintenanceGate>
+          </RoleGate>
+        }
+      />
+      <Route
+        path="/member/profile"
+        element={
+          <RoleGate allow={["membre"]}>
+            <MaintenanceGate>
+              <MemberLayout>
+                <MemberProfile />
+              </MemberLayout>
+            </MaintenanceGate>
+          </RoleGate>
+        }
+      />
+      <Route
+        path="/member/contributions"
+        element={
+          <RoleGate allow={["membre"]}>
+            <MaintenanceGate>
+              <MemberLayout>
+                <MemberContributions />
+              </MemberLayout>
+            </MaintenanceGate>
+          </RoleGate>
+        }
+      />
+      <Route
+        path="/member/stats"
+        element={
+          <RoleGate allow={["membre"]}>
+            <MaintenanceGate>
+              <MemberLayout>
+                <MemberStats />
+              </MemberLayout>
+            </MaintenanceGate>
+          </RoleGate>
+        }
+      />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <SystemSettingsProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </SystemSettingsProvider>
+    </AuthProvider>
+  );
+}
