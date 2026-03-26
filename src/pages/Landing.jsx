@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import "boxicons";
+import youthImage1 from "../image/Ynd (1).jpeg";
+import youthImage2 from "../image/Ynd (2).jpeg";
 
 const features = [
   {
@@ -40,9 +42,14 @@ export default function Landing() {
       </header>
 
       <section className="mx-auto max-w-6xl px-6 py-16 text-center">
-        <h2 className="text-5xl font-extrabold leading-tight md:text-6xl">YOUTH ECND</h2>
+        <h2 className="text-4xl font-extrabold leading-tight md:text-6xl">
+          YOUTH ECND : BATIR L'AVENIR ENSEMBLE
+        </h2>
         <p className="mx-auto mt-6 max-w-3xl text-xl text-slate-200 md:text-2xl">
           Plateforme de gestion de la jeunesse chretienne
+        </p>
+        <p className="mx-auto mt-3 max-w-3xl text-lg text-cyan-200 md:text-xl">
+          Votre bien etre, notre preoccupation.
         </p>
 
         <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
@@ -81,6 +88,28 @@ export default function Landing() {
         </p>
       </section>
 
+      <section className="mx-auto max-w-6xl px-6 pb-16" id="galerie">
+        <h3 className="mb-8 text-center text-3xl font-bold">Notre jeunesse en action</h3>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <article className="overflow-hidden rounded-xl border border-white/20 bg-white/5">
+            <img
+              src={youthImage1}
+              alt="Equipe de jeunes en reunion de travail"
+              className="h-72 w-full object-cover md:h-80"
+              loading="lazy"
+            />
+          </article>
+          <article className="overflow-hidden rounded-xl border border-white/20 bg-white/5">
+            <img
+              src={youthImage2}
+              alt="Jeunes en collaboration sur le terrain"
+              className="h-72 w-full object-cover md:h-80"
+              loading="lazy"
+            />
+          </article>
+        </div>
+      </section>
+
       <footer className="mt-8 bg-slate-950 py-8">
         <div className="mx-auto grid max-w-7xl gap-4 px-6 text-slate-300 lg:grid-cols-3">
           <div>
@@ -98,7 +127,7 @@ export default function Landing() {
             <h5 className="font-semibold">Church</h5>
             <p className="mt-2 flex items-center gap-2">
               <box-icon name="church" color="#cbd5e1" size="sm"></box-icon>
-              Eglise YOUTH ECND
+              ECND Goma Youth
             </p>
             <p className="mt-1 flex items-center gap-2">
               <box-icon name="target-lock" color="#cbd5e1" size="sm"></box-icon>
