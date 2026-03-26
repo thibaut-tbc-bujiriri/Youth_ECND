@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import Loading from "../../components/Loading";
@@ -10,6 +10,19 @@ function currency(value) {
     currency: "USD",
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
+}
+
+function lastSixMonths() {
+  const now = new Date();
+  const result = [];
+  for (let i = 5; i >= 0; i -= 1) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    result.push({
+      key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`,
+      label: date.toLocaleDateString("fr-FR", { month: "short" }),
+    });
+  }
+  return result;
 }
 
 const quickLinks = [
@@ -47,6 +60,11 @@ export default function AdminDashboard() {
     totalUtilisateurs: 0,
     totalActivites: 0,
   });
+  const [charts, setCharts] = useState({
+    monthlyContributions: [],
+    contributionByStatus: [],
+    spiritualByStatus: [],
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,33 +74,69 @@ export default function AdminDashboard() {
   async function fetchStats() {
     try {
       setLoading(true);
-
       const [
         { data: jeunesData },
         { data: contributionsData },
         { data: usersData },
         { data: activitiesData, error: activitiesError },
       ] = await Promise.all([
-        supabase.from("jeunes").select("*", { count: "exact" }),
-        supabase.from("contributions").select("*", { count: "exact" }),
-        supabase.from("users").select("*", { count: "exact" }),
-        supabase.from("activities").select("*", { count: "exact" }),
+        supabase.from("jeunes").select("*"),
+        supabase.from("contributions").select("*"),
+        supabase.from("users").select("*"),
+        supabase.from("activities").select("*"),
       ]);
 
+      const jeunes = jeunesData || [];
+      const contributions = contributionsData || [];
+      const monthlySlots = lastSixMonths();
+
+      const monthlyContributions = monthlySlots.map((slot) => {
+        const total = contributions
+          .filter((item) => (item.date || "").slice(0, 7) === slot.key)
+          .reduce((sum, item) => sum + Number(item.amount ?? item.montant ?? 0), 0);
+        return { ...slot, value: total };
+      });
+
+      const contributionStatusOrder = ["payé", "en attente", "partiel", "non payé"];
+      const contributionByStatus = contributionStatusOrder.map((status) => ({
+        label: status,
+        value: contributions.filter((item) => (item.status || "").toLowerCase() === status).length,
+      }));
+
+      const spiritualLabels = ["nouveau", "chrétien", "païen", "engagé", "inactif"];
+      const spiritualByStatus = spiritualLabels.map((label) => ({
+        label,
+        value: jeunes.filter((item) => (item.etat_spirituel || "").toLowerCase() === label).length,
+      }));
+
       setStats({
-        totalJeunes: jeunesData?.length || 0,
-        activesJeunes: jeunesData?.filter((item) => (item.status || item.statut) === "actif").length || 0,
-        totalContributions:
-          contributionsData?.reduce((sum, item) => sum + Number(item.amount ?? item.montant ?? 0), 0) || 0,
+        totalJeunes: jeunes.length,
+        activesJeunes: jeunes.filter((item) => (item.status || item.statut) === "actif").length,
+        totalContributions: contributions.reduce((sum, item) => sum + Number(item.amount ?? item.montant ?? 0), 0),
         totalUtilisateurs: usersData?.length || 0,
         totalActivites: activitiesError ? 0 : activitiesData?.length || 0,
       });
+
+      setCharts({ monthlyContributions, contributionByStatus, spiritualByStatus });
     } catch (err) {
       console.error("Erreur lors du chargement des stats:", err);
     } finally {
       setLoading(false);
     }
   }
+
+  const monthlyMax = useMemo(
+    () => Math.max(1, ...charts.monthlyContributions.map((item) => item.value || 0)),
+    [charts.monthlyContributions],
+  );
+  const contributionMax = useMemo(
+    () => Math.max(1, ...charts.contributionByStatus.map((item) => item.value || 0)),
+    [charts.contributionByStatus],
+  );
+  const spiritualMax = useMemo(
+    () => Math.max(1, ...charts.spiritualByStatus.map((item) => item.value || 0)),
+    [charts.spiritualByStatus],
+  );
 
   if (loading) return <Loading />;
 
@@ -147,14 +201,76 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="rounded-2xl bg-gradient-to-r from-blue-500 to-blue-700 p-8 text-white shadow-lg">
+      <div className="rounded-2xl bg-gradient-to-r from-blue-500 to-blue-700 p-6 text-white shadow-lg sm:p-8">
         <div className="flex items-center gap-3">
           <box-icon name="badge-check" type="solid" size="lg" class="text-white"></box-icon>
           <div>
-            <h1 className="text-3xl font-bold">Bienvenue, Admin</h1>
+            <h1 className="text-2xl font-bold sm:text-3xl">Bienvenue, Admin</h1>
           </div>
         </div>
       </div>
+
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <article className="rounded-2xl bg-white p-6 shadow-md">
+          <h2 className="text-lg font-bold text-slate-900">Evolution des contributions (6 mois)</h2>
+          <div className="mt-4 space-y-3">
+            {charts.monthlyContributions.map((item) => (
+              <div key={item.key}>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span className="font-medium text-slate-700">{item.label}</span>
+                  <span className="text-slate-500">{currency(item.value)}</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-100">
+                  <div
+                    className="h-2 rounded-full bg-blue-500"
+                    style={{ width: `${Math.max(6, Math.round((item.value / monthlyMax) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="rounded-2xl bg-white p-6 shadow-md">
+          <h2 className="text-lg font-bold text-slate-900">Contributions par statut</h2>
+          <div className="mt-4 space-y-3">
+            {charts.contributionByStatus.map((item) => (
+              <div key={item.label}>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span className="font-medium text-slate-700">{item.label}</span>
+                  <span className="text-slate-500">{item.value}</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-100">
+                  <div
+                    className="h-2 rounded-full bg-emerald-500"
+                    style={{ width: `${Math.max(6, Math.round((item.value / contributionMax) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+      </section>
+
+      <article className="rounded-2xl bg-white p-6 shadow-md">
+        <h2 className="text-lg font-bold text-slate-900">Etat spirituel des jeunes</h2>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {charts.spiritualByStatus.map((item) => (
+            <div key={item.label} className="rounded-xl border border-slate-200 p-4">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="font-medium text-slate-700">{item.label}</span>
+                <span className="text-slate-500">{item.value}</span>
+              </div>
+              <div className="h-2 rounded-full bg-slate-100">
+                <div
+                  className="h-2 rounded-full bg-purple-500"
+                  style={{ width: `${Math.max(6, Math.round((item.value / spiritualMax) * 100))}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </article>
 
       <div className="rounded-2xl bg-white p-6 shadow-md">
         <h2 className="mb-4 text-xl font-bold text-slate-900">Acces rapide</h2>
