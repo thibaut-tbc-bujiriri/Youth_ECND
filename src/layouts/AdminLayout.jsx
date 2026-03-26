@@ -54,7 +54,7 @@ const AdminLayout = ({ children }) => {
 
       <aside
         className={`fixed z-50 h-full bg-gradient-to-b from-slate-900 to-slate-800 text-white shadow-lg transition-all duration-300
-          ${sidebarOpen ? "w-64" : "w-20"}
+          ${sidebarOpen ? "w-64 lg:w-64" : "w-64 lg:w-20"}
           ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0`}
       >
@@ -105,7 +105,7 @@ const AdminLayout = ({ children }) => {
             <h2 className="text-lg font-bold text-slate-800 sm:text-2xl">Admin Dashboard</h2>
           </div>
           <div className="flex items-center space-x-3 sm:space-x-4">
-            <span className="hidden text-sm text-slate-600 sm:block">{user?.email}</span>
+            <span className="hidden max-w-[220px] truncate text-sm text-slate-600 sm:block">{user?.email}</span>
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500 font-bold text-white">
               {user?.email?.[0]?.toUpperCase()}
             </div>

@@ -226,11 +226,11 @@ export default function AdminUtilisateurs() {
   if (loading) return <Loading />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4 sm:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-3 sm:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gray-800 flex items-center gap-3">
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 flex items-center gap-3">
               <box-icon name="user-check" type="solid"></box-icon>
               Gestion des Utilisateurs
             </h1>
@@ -238,7 +238,7 @@ export default function AdminUtilisateurs() {
           </div>
           <button
             onClick={openAddModal}
-            className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition shadow-lg"
+            className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition shadow-lg"
           >
             <box-icon name="user-plus" type="solid"></box-icon>
             Creer via inscription
@@ -247,7 +247,7 @@ export default function AdminUtilisateurs() {
         <div className="mb-6">
           <button
             onClick={handlePrintUsers}
-            className="bg-slate-700 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 transition"
+            className="w-full sm:w-auto bg-slate-700 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg font-semibold flex items-center justify-center gap-2 transition"
           >
             <box-icon name="printer" type="solid" color="#ffffff"></box-icon>
             Imprimer la liste des utilisateurs
@@ -290,60 +290,108 @@ export default function AdminUtilisateurs() {
               <p className="text-gray-500 text-lg">Aucun utilisateur trouvé</p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-                <tr>
-                  <th className="px-6 py-4 text-left font-semibold">Email</th>
-                  <th className="px-6 py-4 text-left font-semibold">Rôle</th>
-                  <th className="px-6 py-4 text-left font-semibold">Date d'inscription</th>
-                  <th className="px-6 py-4 text-center font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
+            <>
+              <div className="grid gap-3 p-3 md:hidden">
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-blue-50 transition">
-                    <td className="px-6 py-4 text-gray-800 font-medium">{user.email}</td>
-                    <td className="px-6 py-4">
+                  <article key={user.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="break-all text-sm font-semibold text-slate-800">{user.email}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Inscrit le {user.created_at ? new Date(user.created_at).toLocaleDateString("fr-FR") : "-"}
+                    </p>
+                    <div className="mt-3">
+                      <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Rôle
+                      </label>
                       <select
                         value={user.role === "sans-role" ? "membre" : user.role}
                         onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                        className={`px-3 py-2 rounded-lg font-semibold text-white cursor-pointer ${
+                        className={`w-full px-3 py-2 rounded-lg font-semibold text-white cursor-pointer ${
                           user.role === "admin" ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"
                         }`}
                       >
                         <option value="membre">Membre</option>
                         <option value="admin">Admin</option>
                       </select>
-                    </td>
-                    <td className="px-6 py-4 text-gray-600 text-sm">
-                      {user.created_at ? new Date(user.created_at).toLocaleDateString("fr-FR") : "-"}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex justify-center gap-3">
-                        <button
-                          onClick={() => openEditModal(user)}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition"
-                          title="Modifier"
-                        >
-                          <box-icon name="edit" type="solid"></box-icon>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg transition"
-                          title="Supprimer"
-                        >
-                          <box-icon name="trash" type="solid"></box-icon>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => openEditModal(user)}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition flex items-center justify-center gap-2"
+                        title="Modifier"
+                      >
+                        <box-icon name="edit" type="solid" color="#ffffff" size="sm"></box-icon>
+                        Modifier
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg transition flex items-center justify-center gap-2"
+                        title="Supprimer"
+                      >
+                        <box-icon name="trash" type="solid" color="#ffffff" size="sm"></box-icon>
+                        Supprimer
+                      </button>
+                    </div>
+                  </article>
                 ))}
-              </tbody>
-            </table>
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[760px]">
+                  <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                    <tr>
+                      <th className="px-6 py-4 text-left font-semibold">Email</th>
+                      <th className="px-6 py-4 text-left font-semibold">Rôle</th>
+                      <th className="px-6 py-4 text-left font-semibold">Date d'inscription</th>
+                      <th className="px-6 py-4 text-center font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {filteredUsers.map((user) => (
+                      <tr key={user.id} className="hover:bg-blue-50 transition">
+                        <td className="px-6 py-4 text-gray-800 font-medium break-all">{user.email}</td>
+                        <td className="px-6 py-4">
+                          <select
+                            value={user.role === "sans-role" ? "membre" : user.role}
+                            onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                            className={`px-3 py-2 rounded-lg font-semibold text-white cursor-pointer ${
+                              user.role === "admin" ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"
+                            }`}
+                          >
+                            <option value="membre">Membre</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        </td>
+                        <td className="px-6 py-4 text-gray-600 text-sm">
+                          {user.created_at ? new Date(user.created_at).toLocaleDateString("fr-FR") : "-"}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex justify-center gap-3">
+                            <button
+                              onClick={() => openEditModal(user)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition"
+                              title="Modifier"
+                            >
+                              <box-icon name="edit" type="solid"></box-icon>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user.id)}
+                              className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg transition"
+                              title="Supprimer"
+                            >
+                              <box-icon name="trash" type="solid"></box-icon>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <div className="flex items-center justify-between">
               <div>
@@ -362,7 +410,7 @@ export default function AdminUtilisateurs() {
                   {filteredUsers.filter((u) => u.role === "admin").length}
                 </p>
               </div>
-              <box-icon name="shield-alt" type="solid" size="lg" class="text-red-400"></box-icon>
+              <box-icon name="shield-check" type="solid" size="lg" class="text-red-400"></box-icon>
             </div>
           </div>
 
@@ -429,7 +477,7 @@ export default function AdminUtilisateurs() {
               </p>
             )}
 
-            <div className="flex gap-3 mt-6">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={closeModal}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold transition flex items-center justify-center gap-2"
