@@ -7,13 +7,65 @@ function isMissingRelationError(error) {
   return error?.message?.toLowerCase().includes("audit_logs") || error?.code === "42P01";
 }
 
-function asPrettyJson(value) {
-  try {
-    if (!value || (typeof value === "object" && Object.keys(value).length === 0)) return "-";
-    return JSON.stringify(value);
-  } catch {
-    return "-";
+function prettyLabel(key) {
+  const labels = {
+    area: "Espace",
+    path: "Page",
+    role: "Role",
+    email: "Email",
+    reason: "Raison",
+    error: "Erreur",
+    amount: "Montant",
+    status: "Statut",
+    id: "ID",
+    user_id: "Utilisateur",
+    jeune_id: "Jeune",
+    entity_id: "Element",
+  };
+  return labels[key] || key.replace(/_/g, " ");
+}
+
+function valueToText(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "boolean") return value ? "oui" : "non";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map((item) => valueToText(item)).join(", ");
+  if (typeof value === "object") {
+    return Object.entries(value)
+      .map(([k, v]) => `${prettyLabel(k)}: ${valueToText(v)}`)
+      .join(", ");
   }
+  return String(value);
+}
+
+function detailsToText(details) {
+  if (!details || (typeof details === "object" && Object.keys(details).length === 0)) return "Aucun detail complementaire";
+  if (typeof details !== "object") return valueToText(details);
+  return Object.entries(details)
+    .map(([key, value]) => `${prettyLabel(key)}: ${valueToText(value)}`)
+    .join(" | ");
+}
+
+function actionToText(action) {
+  const map = {
+    PAGE_VIEW: "a consulte une page",
+    LOGIN: "s'est connecte",
+    LOGOUT: "s'est deconnecte",
+    CREATE: "a cree un element",
+    UPDATE: "a modifie un element",
+    DELETE: "a supprime un element",
+    REGISTER: "a effectue une inscription",
+  };
+  return map[action] || `a execute l'action ${action || "-"}`;
+}
+
+function buildAuditDescription(log) {
+  const actor = log.actor_email || "Un utilisateur";
+  const entity = log.entity ? `sur ${log.entity}` : "";
+  const result = log.success ? "avec succes" : "avec echec";
+  const details = detailsToText(log.details);
+  return `${actor} ${actionToText(log.action)} ${entity} (${result}). ${details}`.trim();
 }
 
 export default function AdminAudit() {
@@ -70,7 +122,7 @@ export default function AdminAudit() {
         log.entity,
         log.entity_id,
         log.path,
-        asPrettyJson(log.details),
+        detailsToText(log.details),
       ]
         .filter(Boolean)
         .join(" ")
@@ -126,23 +178,23 @@ export default function AdminAudit() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-slate-900">Journal d'Audit</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-slate-900">Journal d'Audit</h1>
           <p className="mt-2 text-slate-600">
             Suis tous les mouvements de l'application: navigation, creations, modifications, suppressions.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <button
             onClick={loadAuditLogs}
             disabled={tableMissing}
-            className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             Rafraichir
           </button>
           <button
             onClick={handlePrintAudit}
             disabled={tableMissing}
-            className="rounded-xl bg-slate-700 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-slate-700 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             Imprimer le journal
           </button>
@@ -153,7 +205,7 @@ export default function AdminAudit() {
 
       {!tableMissing && (
         <>
-          <section className="grid gap-4 md:grid-cols-3">
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm text-slate-500">Total logs</p>
               <p className="mt-2 text-3xl font-bold text-slate-900">{filteredLogs.length}</p>
@@ -168,7 +220,7 @@ export default function AdminAudit() {
             </article>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
             <div className="grid gap-3 lg:grid-cols-5">
               <input
                 type="text"
@@ -198,8 +250,32 @@ export default function AdminAudit() {
           </section>
 
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
+            {filteredLogs.length === 0 && (
+              <div className="px-5 py-10 text-center text-slate-500">Aucun log d'audit avec ces filtres.</div>
+            )}
+            {filteredLogs.length > 0 && (
+              <div className="grid gap-3 p-3 md:hidden">
+                {filteredLogs.map((log) => (
+                  <article key={log.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {log.created_at ? new Date(log.created_at).toLocaleString("fr-FR") : "-"}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-700">{log.actor_email || "Utilisateur inconnu"}</p>
+                    <p className="mt-2 text-sm text-slate-700">{buildAuditDescription(log)}</p>
+                    <div className="mt-2 flex items-center gap-2 text-xs">
+                      <span className="rounded-full bg-slate-200 px-2.5 py-1 text-slate-700">{log.action || "-"}</span>
+                      <span className="rounded-full bg-slate-200 px-2.5 py-1 text-slate-700">{log.entity || "-"}</span>
+                      <span className={`rounded-full px-2.5 py-1 font-semibold ${log.success ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                        {log.success ? "Succes" : "Echec"}
+                      </span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-[1200px] w-full">
                 <thead className="bg-slate-100 text-left text-sm text-slate-600">
                   <tr>
                     <th className="px-5 py-4 font-semibold">Date</th>
@@ -209,7 +285,7 @@ export default function AdminAudit() {
                     <th className="px-5 py-4 font-semibold">Entite</th>
                     <th className="px-5 py-4 font-semibold">Page</th>
                     <th className="px-5 py-4 font-semibold">Resultat</th>
-                    <th className="px-5 py-4 font-semibold">Details</th>
+                    <th className="px-5 py-4 font-semibold">Description claire</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -236,8 +312,8 @@ export default function AdminAudit() {
                             {log.success ? "Succes" : "Echec"}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-xs text-slate-600">
-                          <code className="whitespace-pre-wrap break-words">{asPrettyJson(log.details)}</code>
+                        <td className="px-5 py-4 text-xs text-slate-600 max-w-[420px]">
+                          <p className="whitespace-pre-wrap break-words">{buildAuditDescription(log)}</p>
                         </td>
                       </tr>
                     ))

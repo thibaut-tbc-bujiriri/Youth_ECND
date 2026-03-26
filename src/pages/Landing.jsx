@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import "boxicons";
+import logoEcnd from "../image/logo_ecnd.jpg";
 import youthImage1 from "../image/Ynd (1).jpeg";
 import youthImage2 from "../image/Ynd (2).jpeg";
 
@@ -30,7 +31,14 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-sky-900 text-white">
       <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-8">
-        <h1 className="text-xl font-bold tracking-wide">YOUTH ECND</h1>
+        <div className="flex items-center gap-3">
+          <img
+            src={logoEcnd}
+            alt="Logo ECND"
+            className="h-12 w-12 rounded-full border-2 border-cyan-300/70 object-cover"
+          />
+          <h1 className="text-xl font-bold tracking-wide">Eglise Chretienne pour le nouveau depart</h1>
+        </div>
         <nav className="flex items-center gap-4">
           <Link to="/" className="text-sm hover:text-cyan-300">
             Accueil
