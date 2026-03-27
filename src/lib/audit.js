@@ -74,6 +74,9 @@ export async function logAuditEvent({
   success = true,
 }) {
   if (!action) return;
+  const normalizedAction = String(action).toUpperCase();
+  const allowedActions = new Set(["CREATE", "INSERT", "UPDATE", "DELETE"]);
+  if (!allowedActions.has(normalizedAction)) return;
 
   try {
     const actor = await getCurrentActor();

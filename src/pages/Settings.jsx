@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabase";
 import { useEffect, useState } from "react";
 import DashboardLayout from "../layouts/DashboardLayout";
+import Loading from "../components/Loading";
 
 export default function Settings() {
   const [profile, setProfile] = useState(null);
@@ -16,7 +17,7 @@ export default function Settings() {
   }, []);
 
   if (loading) {
-    return <DashboardLayout><div>Chargement...</div></DashboardLayout>;
+    return <DashboardLayout><Loading message="Chargement..." /></DashboardLayout>;
   }
 
   return (

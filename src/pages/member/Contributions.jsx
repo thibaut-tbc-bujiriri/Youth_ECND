@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { getMemberContext, getMemberContributions } from "../../lib/memberData";
 import { queueEmailNotification } from "../../lib/emailNotifications";
+import Loading from "../../components/Loading";
+import { useConfirm } from "../../context/ConfirmContext";
 import "boxicons";
 
 const defaultForm = {
@@ -30,6 +32,7 @@ function statusKey(status) {
 }
 
 export default function MemberContributions() {
+  const { confirm } = useConfirm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -117,7 +120,13 @@ export default function MemberContributions() {
   }
 
   async function deleteContribution(id) {
-    if (!window.confirm("Supprimer cette contribution en attente ?")) return;
+    const approved = await confirm({
+      title: "Supprimer la contribution",
+      message: "Voulez-vous supprimer cette contribution en attente ?",
+      confirmText: "Supprimer",
+      tone: "danger",
+    });
+    if (!approved) return;
     try {
       const { error: deleteError } = await supabase
         .from("contributions")
@@ -148,18 +157,19 @@ export default function MemberContributions() {
   }, [contributions]);
 
   if (loading) {
-    return <div className="rounded-xl bg-white p-6 shadow-sm">Chargement des contributions...</div>;
+    return <Loading message="Chargement des contributions..." />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-3xl font-bold text-slate-900">Mes Contributions</h1>
         <button
           onClick={() => setShowModal(true)}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          className="rounded-lg px-2 py-2 text-emerald-600 hover:text-emerald-500"
+          title="Ajouter une contribution"
         >
-          + Ajouter une contribution
+          <box-icon name="plus-circle" type="solid" color="currentColor"></box-icon>
         </button>
       </div>
 
@@ -173,7 +183,7 @@ export default function MemberContributions() {
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       {success && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
         <div className="bg-white rounded-lg shadow-md p-6">
           <p className="text-slate-600 text-sm">Total paye</p>
           <p className="text-3xl font-bold text-slate-900 mt-2">{formatCurrency(summary.total)}</p>
@@ -188,35 +198,23 @@ export default function MemberContributions() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-slate-100 border-b">
-            <tr>
-              <th className="p-4 text-left text-sm font-semibold text-slate-700">Date</th>
-              <th className="p-4 text-left text-sm font-semibold text-slate-700">Montant</th>
-              <th className="p-4 text-left text-sm font-semibold text-slate-700">Statut</th>
-              <th className="p-4 text-left text-sm font-semibold text-slate-700">Commentaire</th>
-              <th className="p-4 text-left text-sm font-semibold text-slate-700">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contributions.length === 0 ? (
-              <tr>
-                <td colSpan="5" className="p-6 text-center text-slate-500">Aucune contribution enregistree.</td>
-              </tr>
-            ) : (
-              contributions.map((contribution) => {
+      <div className="overflow-hidden rounded-lg bg-white shadow-md">
+        {contributions.length === 0 ? (
+          <div className="p-6 text-center text-slate-500">Aucune contribution enregistree.</div>
+        ) : (
+          <>
+            <div className="grid gap-3 p-3 md:hidden">
+              {contributions.map((contribution) => {
                 const key = statusKey(contribution.status);
                 return (
-                  <tr key={contribution.id} className="border-b hover:bg-slate-50 transition">
-                    <td className="p-4 text-sm text-slate-900">
+                  <article key={contribution.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-semibold text-slate-900">
                       {contribution.date ? new Date(contribution.date).toLocaleDateString("fr-FR") : "-"}
-                    </td>
-                    <td className="p-4 text-sm font-semibold text-slate-900">
-                      {formatCurrency(contribution.amount ?? contribution.montant)}
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    </p>
+                    <p className="mt-1 text-sm text-slate-700">{formatCurrency(contribution.amount ?? contribution.montant)}</p>
+                    <p className="mt-2 text-sm text-slate-600">{contribution.commentaire || "-"}</p>
+                    <div className="mt-2">
+                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${
                         key === "paid"
                           ? "bg-green-100 text-green-800"
                           : key === "pending"
@@ -225,34 +223,79 @@ export default function MemberContributions() {
                       }`}>
                         {contribution.status}
                       </span>
-                    </td>
-                    <td className="p-4 text-sm text-slate-600">{contribution.commentaire || "-"}</td>
-                    <td className="p-4 text-sm">
+                    </div>
+                    <div className="mt-3">
                       {contribution.created_by === publicUser?.id && key === "pending" ? (
-                        <button
-                          onClick={() => deleteContribution(contribution.id)}
-                          className="text-red-600 hover:text-red-700 font-medium"
-                        >
-                          Supprimer
+                        <button onClick={() => deleteContribution(contribution.id)} className="text-red-500 hover:text-red-400" title="Supprimer">
+                          <box-icon name="trash" type="solid" color="currentColor" size="sm"></box-icon>
                         </button>
                       ) : (
                         <span className="text-slate-400">Verrouille</span>
                       )}
-                    </td>
-                  </tr>
+                    </div>
+                  </article>
                 );
-              })
-            )}
-          </tbody>
-        </table>
+              })}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[860px]">
+                <thead className="border-b bg-slate-100">
+                  <tr>
+                    <th className="p-4 text-left text-sm font-semibold text-slate-700">Date</th>
+                    <th className="p-4 text-left text-sm font-semibold text-slate-700">Montant</th>
+                    <th className="p-4 text-left text-sm font-semibold text-slate-700">Statut</th>
+                    <th className="p-4 text-left text-sm font-semibold text-slate-700">Commentaire</th>
+                    <th className="p-4 text-left text-sm font-semibold text-slate-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contributions.map((contribution) => {
+                    const key = statusKey(contribution.status);
+                    return (
+                      <tr key={contribution.id} className="border-b transition hover:bg-slate-50">
+                        <td className="p-4 text-sm text-slate-900">
+                          {contribution.date ? new Date(contribution.date).toLocaleDateString("fr-FR") : "-"}
+                        </td>
+                        <td className="p-4 text-sm font-semibold text-slate-900">
+                          {formatCurrency(contribution.amount ?? contribution.montant)}
+                        </td>
+                        <td className="p-4">
+                          <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                            key === "paid"
+                              ? "bg-green-100 text-green-800"
+                              : key === "pending"
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-slate-100 text-slate-700"
+                          }`}>
+                            {contribution.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-sm text-slate-600">{contribution.commentaire || "-"}</td>
+                        <td className="p-4 text-sm">
+                          {contribution.created_by === publicUser?.id && key === "pending" ? (
+                            <button onClick={() => deleteContribution(contribution.id)} className="text-red-500 hover:text-red-400" title="Supprimer">
+                              <box-icon name="trash" type="solid" color="currentColor" size="sm"></box-icon>
+                            </button>
+                          ) : (
+                            <span className="text-slate-400">Verrouille</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6">
         <div className="flex items-center gap-2 mb-2">
-          <box-icon name="edit-alt" type="solid" color="#1d4ed8"></box-icon>
-          <h3 className="font-bold text-blue-900">Comment contribuer ?</h3>
+          <box-icon name="edit-alt" type="solid" color="#2f6b47"></box-icon>
+          <h3 className="font-bold text-emerald-900">Comment contribuer ?</h3>
         </div>
-        <p className="text-blue-800 text-sm">
+        <p className="text-sm text-emerald-800">
           Cliquez sur le bouton "Ajouter une contribution" pour enregistrer votre contribution mensuelle.
           Elle reste en attente jusqu'a validation d'un administrateur.
         </p>
@@ -301,8 +344,8 @@ export default function MemberContributions() {
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 rounded-lg border border-slate-300">
                   Annuler
                 </button>
-                <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 disabled:opacity-60">
-                  {saving ? "Enregistrement..." : "Envoyer en attente"}
+                <button type="submit" disabled={saving} className="rounded-lg px-2 py-2 text-emerald-600 hover:text-emerald-500 disabled:opacity-60" title="Envoyer en attente">
+                  {saving ? "..." : <box-icon name="send" type="solid" color="currentColor" size="sm"></box-icon>}
                 </button>
               </div>
             </form>

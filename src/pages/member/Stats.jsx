@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getMemberContext, getMemberContributions } from "../../lib/memberData";
+import Loading from "../../components/Loading";
 import "boxicons";
 
 function formatCurrency(value) {
@@ -86,7 +87,7 @@ export default function MemberStats() {
   }, [stats.monthly]);
 
   if (loading) {
-    return <div className="rounded-xl bg-white p-6 shadow-sm">Chargement des statistiques...</div>;
+    return <Loading message="Chargement des statistiques..." />;
   }
 
   return (
@@ -94,7 +95,7 @@ export default function MemberStats() {
       <h1 className="text-3xl font-bold text-slate-900">Mes Statistiques</h1>
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-bold text-slate-900 mb-4">Contributions approuvees par mois</h2>
           {stats.monthly.length === 0 ? (
@@ -108,7 +109,7 @@ export default function MemberStats() {
                 const percent = maxMonthlyAmount > 0 ? Math.max((item.amount / maxMonthlyAmount) * 100, 5) : 5;
                 return (
                   <div key={item.month} className="flex-1 h-full flex flex-col items-center justify-end gap-2">
-                    <div className="w-full rounded-t-md bg-blue-500" style={{ height: `${percent}%` }}></div>
+                    <div className="w-full rounded-t-md bg-emerald-600" style={{ height: `${percent}%` }}></div>
                     <p className="text-[11px] text-slate-500">{item.month}</p>
                   </div>
                 );
@@ -137,14 +138,14 @@ export default function MemberStats() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-lg p-6">
-          <p className="text-blue-600 text-sm font-medium">Contribution moyenne</p>
-          <p className="text-2xl font-bold text-blue-900 mt-2">{formatCurrency(stats.average)}</p>
+          <p className="text-sm font-medium text-emerald-700">Contribution moyenne</p>
+          <p className="mt-2 text-2xl font-bold text-emerald-900">{formatCurrency(stats.average)}</p>
         </div>
         <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-lg p-6">
-          <p className="text-green-600 text-sm font-medium">Contribution max</p>
-          <p className="text-2xl font-bold text-green-900 mt-2">{formatCurrency(stats.max)}</p>
+          <p className="text-sm font-medium text-emerald-700">Contribution max</p>
+          <p className="mt-2 text-2xl font-bold text-emerald-900">{formatCurrency(stats.max)}</p>
         </div>
         <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-lg p-6">
           <p className="text-purple-600 text-sm font-medium">Regularite</p>

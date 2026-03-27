@@ -9,6 +9,7 @@ const defaultSettings = {
   maintenance_mode: false,
   registrations_open: true,
   email_notifications: true,
+  session_duration_minutes: 120,
 };
 
 function isMissingRelationError(error) {
@@ -19,9 +20,10 @@ export function SystemSettingsProvider({ children }) {
   const [settings, setSettings] = useState(defaultSettings);
   const [loading, setLoading] = useState(true);
 
-  async function reloadSettings() {
+  async function reloadSettings(options = {}) {
+    const { silent = false } = options;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const { data, error } = await supabase
         .from("app_settings")
         .select("*")
@@ -37,6 +39,7 @@ export function SystemSettingsProvider({ children }) {
           maintenance_mode: Boolean(data.maintenance_mode),
           registrations_open: Boolean(data.registrations_open),
           email_notifications: Boolean(data.email_notifications),
+          session_duration_minutes: Number(data.session_duration_minutes || 120),
         });
       } else {
         setSettings(defaultSettings);
@@ -47,12 +50,25 @@ export function SystemSettingsProvider({ children }) {
       }
       setSettings(defaultSettings);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
   useEffect(() => {
     reloadSettings();
+    const interval = window.setInterval(() => {
+      reloadSettings({ silent: true });
+    }, 30000);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") reloadSettings({ silent: true });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   const value = useMemo(

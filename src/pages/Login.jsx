@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { invalidateAuditActorCache, logAuditEvent } from "../lib/audit";
 import { useSystemSettings } from "../context/SystemSettingsContext";
+import { useTheme } from "../context/ThemeContext";
+import "boxicons";
 
 const SIGN_IN_TIMEOUT_MS = 20000;
 const PROFILE_TIMEOUT_MS = 8000;
@@ -75,6 +77,8 @@ export default function Login() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const { settings } = useSystemSettings();
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
 
   const finishRedirect = (role) => {
     localStorage.setItem("role", role);
@@ -178,32 +182,65 @@ export default function Login() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-blue-800 text-white flex items-center justify-center p-6">
-      <section className="w-full max-w-md bg-white/10 backdrop-blur-md border border-white/10 rounded-xl p-8 shadow-xl">
+    <main
+      className={`min-h-screen flex items-center justify-center p-6 ${
+        isDark
+          ? "bg-gradient-to-br from-slate-900 via-indigo-900 to-blue-800 text-white"
+          : "bg-gradient-to-br from-sky-100 via-blue-50 to-slate-100 text-slate-900"
+      }`}
+    >
+      <section
+        className={`w-full max-w-md rounded-xl p-8 shadow-xl ${
+          isDark ? "bg-white/10 backdrop-blur-md border border-white/10" : "bg-white border border-slate-200"
+        }`}
+      >
+        <div className="mb-4 flex justify-end">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className={`p-1.5 transition ${isDark ? "text-slate-100 hover:text-amber-300" : "text-slate-500 hover:text-emerald-700"}`}
+            aria-label="Changer le theme"
+            title="Changer le theme"
+          >
+            <box-icon name={isDark ? "sun" : "moon"} color={isDark ? "#ffffff" : "#0f172a"} size="sm"></box-icon>
+          </button>
+        </div>
         <h1 className="text-3xl mb-4 font-bold">Connexion</h1>
-        <p className="text-sm text-slate-200 mb-6">Bienvenue sur YOUTH ECND, connectez-vous pour continuer.</p>
+        <p className={`text-sm mb-6 ${isDark ? "text-slate-200" : "text-slate-600"}`}>
+          Bienvenue sur YOUTH ECND, connectez-vous pour continuer.
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="mb-1 flex items-center gap-2 text-sm font-medium">
+              <box-icon name="envelope" type="solid" color={isDark ? "#dbeafe" : "#334155"} size="xs"></box-icon>
+              Email
+            </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              className="w-full p-3 rounded-lg bg-white/90 text-slate-900 placeholder-slate-500 disabled:opacity-50"
+              className={`w-full p-3 rounded-lg text-slate-900 placeholder-slate-500 disabled:opacity-50 ${
+                isDark ? "bg-white/90" : "bg-slate-100"
+              }`}
               placeholder="email@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Mot de passe</label>
+            <label className="mb-1 flex items-center gap-2 text-sm font-medium">
+              <box-icon name="lock-alt" type="solid" color={isDark ? "#dbeafe" : "#334155"} size="xs"></box-icon>
+              Mot de passe
+            </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              className="w-full p-3 rounded-lg bg-white/90 text-slate-900 placeholder-slate-500 disabled:opacity-50"
+              className={`w-full p-3 rounded-lg text-slate-900 placeholder-slate-500 disabled:opacity-50 ${
+                isDark ? "bg-white/90" : "bg-slate-100"
+              }`}
               placeholder="********"
             />
           </div>
@@ -217,17 +254,27 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-lg bg-blue-500 hover:bg-blue-400 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="w-full rounded-lg bg-blue-500 py-3 font-medium transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Connexion en cours..." : "Se connecter"}
+            <span className="inline-flex items-center gap-2">
+              <box-icon name="log-in" type="solid" color="#ffffff" size="xs"></box-icon>
+              {loading ? "Connexion en cours..." : "Se connecter"}
+            </span>
           </button>
+
         </form>
 
-        <p className="mt-6 text-sm text-slate-200 text-center">
+        <p className={`mt-6 text-sm text-center ${isDark ? "text-slate-200" : "text-slate-600"}`}>
+          <Link className={`font-semibold ${isDark ? "text-cyan-200 hover:text-cyan-100" : "text-emerald-700 hover:text-emerald-800"}`} to="/">
+            Retour a l'accueil
+          </Link>
+        </p>
+
+        <p className={`mt-3 text-sm text-center ${isDark ? "text-slate-200" : "text-slate-600"}`}>
           {settings.registrations_open ? (
             <>
               Pas de compte ?{" "}
-              <Link className="text-cyan-200 hover:text-cyan-100 font-semibold" to="/register">
+              <Link className={`font-semibold ${isDark ? "text-cyan-200 hover:text-cyan-100" : "text-emerald-700 hover:text-emerald-800"}`} to="/register">
                 Creer un compte
               </Link>
             </>

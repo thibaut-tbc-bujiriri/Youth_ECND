@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { logAuditEvent } from "../lib/audit";
 import { useSystemSettings } from "../context/SystemSettingsContext";
 import { queueEmailNotification } from "../lib/emailNotifications";
+import "boxicons";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -173,31 +174,40 @@ export default function Register() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Nom complet</label>
+            <label className="mb-1 flex items-center gap-2 text-sm font-medium">
+              <box-icon name="user" type="solid" color="#dbeafe" size="xs"></box-icon>
+              Nom complet
+            </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={loading}
               className="w-full p-3 rounded-lg bg-white/90 text-slate-900 placeholder-slate-500 disabled:opacity-50"
-              placeholder="Jean Dupont"
+              placeholder="Thibaut Tbc Bujiriri"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="mb-1 flex items-center gap-2 text-sm font-medium">
+              <box-icon name="envelope" type="solid" color="#dbeafe" size="xs"></box-icon>
+              Email
+            </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
               className="w-full p-3 rounded-lg bg-white/90 text-slate-900 placeholder-slate-500 disabled:opacity-50"
-              placeholder="email@example.com"
+              placeholder="thibauttbcbujiriri@gmail.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Mot de passe</label>
+            <label className="mb-1 flex items-center gap-2 text-sm font-medium">
+              <box-icon name="lock-alt" type="solid" color="#dbeafe" size="xs"></box-icon>
+              Mot de passe
+            </label>
             <input
               type="password"
               value={password}
@@ -209,7 +219,10 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Confirmer le mot de passe</label>
+            <label className="mb-1 flex items-center gap-2 text-sm font-medium">
+              <box-icon name="check-shield" type="solid" color="#dbeafe" size="xs"></box-icon>
+              Confirmer le mot de passe
+            </label>
             <input
               type="password"
               value={confirmPassword}
@@ -242,7 +255,10 @@ export default function Register() {
             disabled={loading || !settings.registrations_open}
             className="w-full py-3 rounded-lg bg-cyan-500 hover:bg-cyan-400 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
-            {loading ? "Creation en cours..." : "S'inscrire"}
+            <span className="inline-flex items-center gap-2">
+              <box-icon name="user-plus" type="solid" color="#ffffff" size="xs"></box-icon>
+              {loading ? "Creation en cours..." : "S'inscrire"}
+            </span>
           </button>
         </form>
 

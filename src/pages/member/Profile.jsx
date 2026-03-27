@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { getMemberContext, getMemberContributions, saveMemberJeune } from "../../lib/memberData";
+import Loading from "../../components/Loading";
 import "boxicons";
 
 const defaultForm = {
@@ -237,7 +238,7 @@ export default function MemberProfile() {
   }, [contributions]);
 
   if (loading) {
-    return <div className="rounded-xl bg-white p-6 shadow-sm">Chargement du profil...</div>;
+    return <Loading message="Chargement du profil..." />;
   }
 
   return (
@@ -247,23 +248,23 @@ export default function MemberProfile() {
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       {success && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div>}
 
-      <div className="bg-white rounded-lg shadow-md p-8">
-        <div className="flex items-start justify-between mb-6">
-          <div className="flex items-center space-x-6">
+      <div className="rounded-lg bg-white p-5 shadow-md sm:p-8">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-center space-x-4 sm:space-x-6">
             {form.photo_url ? (
               <img src={form.photo_url} alt="Profil membre" className="w-24 h-24 rounded-full object-cover" />
             ) : (
-              <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-4xl font-bold">
+              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-4xl font-bold text-white">
                 {(form.prenom || publicUser?.email || "?")?.[0]?.toUpperCase()}
               </div>
             )}
             <div>
-              <h2 className="text-2xl font-bold text-slate-900">{publicUser?.email}</h2>
+              <h2 className="break-all text-xl font-bold text-slate-900 sm:text-2xl">{publicUser?.email}</h2>
               <p className="text-slate-600 text-sm">{form.status || "actif"}</p>
             </div>
           </div>
-          <button onClick={() => setEditing((current) => !current)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            {editing ? "Fermer" : "Modifier"}
+          <button onClick={() => setEditing((current) => !current)} className="rounded-lg px-2 py-2 text-emerald-600 hover:text-emerald-500" title={editing ? "Fermer" : "Modifier"}>
+            <box-icon name={editing ? "x-circle" : "edit"} type="solid" color="currentColor"></box-icon>
           </button>
         </div>
 
@@ -300,7 +301,7 @@ export default function MemberProfile() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <input value={form.nom} onChange={(e) => updateField("nom", e.target.value)} placeholder="Nom" className="rounded-lg border border-slate-300 px-4 py-3" />
             <input value={form.postnom} onChange={(e) => updateField("postnom", e.target.value)} placeholder="Postnom" className="rounded-lg border border-slate-300 px-4 py-3" />
             <input value={form.prenom} onChange={(e) => updateField("prenom", e.target.value)} placeholder="Prenom" className="rounded-lg border border-slate-300 px-4 py-3" />
@@ -326,7 +327,7 @@ export default function MemberProfile() {
               <option value="inactif">Inactif</option>
             </select>
             <div className="md:col-span-2 flex justify-end">
-              <button onClick={saveProfile} disabled={saving || uploading} className="px-5 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-60">
+              <button onClick={saveProfile} disabled={saving || uploading} className="rounded-lg bg-emerald-600 px-5 py-3 font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
                 {saving ? "Enregistrement..." : "Enregistrer le profil"}
               </button>
             </div>
@@ -334,18 +335,18 @@ export default function MemberProfile() {
         )}
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="rounded-lg bg-white p-6 shadow-md">
         <h2 className="text-xl font-bold text-slate-900 mb-4">Resume des Contributions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4">
+          <div className="rounded-lg bg-gradient-to-br from-blue-50 to-cyan-50 p-4 text-center">
             <p className="text-sm text-slate-600">Paye ce mois</p>
-            <p className="text-2xl font-bold text-blue-600">{formatCurrency(summary.currentMonth)}</p>
+            <p className="text-2xl font-bold text-emerald-700">{formatCurrency(summary.currentMonth)}</p>
           </div>
-          <div className="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg">
+          <div className="rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 p-4 text-center">
             <p className="text-sm text-slate-600">Total paye</p>
-            <p className="text-2xl font-bold text-green-600">{formatCurrency(summary.total)}</p>
+            <p className="text-2xl font-bold text-emerald-700">{formatCurrency(summary.total)}</p>
           </div>
-          <div className="text-center p-4 bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg">
+          <div className="rounded-lg bg-gradient-to-br from-amber-50 to-orange-50 p-4 text-center">
             <p className="text-sm text-slate-600">En attente</p>
             <p className="text-2xl font-bold text-orange-600">{summary.pendingCount}</p>
           </div>
@@ -354,11 +355,11 @@ export default function MemberProfile() {
 
       <div className="bg-white rounded-lg shadow-md p-6" id="settings">
         <h2 className="text-xl font-bold text-slate-900 mb-4">Securite</h2>
-        <div className="grid md:grid-cols-2 gap-3">
+        <div className="grid gap-3 md:grid-cols-2">
           <input type="password" value={passwordForm.newPassword} onChange={(e) => setPasswordForm((current) => ({ ...current, newPassword: e.target.value }))} placeholder="Nouveau mot de passe" className="rounded-lg border border-slate-300 px-4 py-3" />
           <input type="password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm((current) => ({ ...current, confirmPassword: e.target.value }))} placeholder="Confirmer mot de passe" className="rounded-lg border border-slate-300 px-4 py-3" />
         </div>
-        <button onClick={updatePassword} disabled={passwordSaving} className="mt-4 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:opacity-60">
+        <button onClick={updatePassword} disabled={passwordSaving} className="mt-4 rounded-lg bg-slate-700 px-4 py-2 text-white hover:bg-slate-800 disabled:opacity-60">
           {passwordSaving ? "Mise a jour..." : "Changer le mot de passe"}
         </button>
       </div>

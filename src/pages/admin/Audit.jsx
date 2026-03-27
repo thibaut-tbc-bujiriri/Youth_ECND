@@ -2,6 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { printTableReport } from "../../lib/printUtils";
 import Loading from "../../components/Loading";
+import "boxicons";
+
+const TRACKED_ACTIONS = ["CREATE", "INSERT", "UPDATE", "DELETE"];
+const ACTION_LABELS = {
+  CREATE: "Creation",
+  INSERT: "Ajout",
+  UPDATE: "Modification",
+  DELETE: "Suppression",
+};
 
 function isMissingRelationError(error) {
   return error?.message?.toLowerCase().includes("audit_logs") || error?.code === "42P01";
@@ -48,16 +57,8 @@ function detailsToText(details) {
 }
 
 function actionToText(action) {
-  const map = {
-    PAGE_VIEW: "a consulte une page",
-    LOGIN: "s'est connecte",
-    LOGOUT: "s'est deconnecte",
-    CREATE: "a cree un element",
-    UPDATE: "a modifie un element",
-    DELETE: "a supprime un element",
-    REGISTER: "a effectue une inscription",
-  };
-  return map[action] || `a execute l'action ${action || "-"}`;
+  const key = String(action || "").toUpperCase();
+  return ACTION_LABELS[key] || "-";
 }
 
 function buildAuditDescription(log) {
@@ -65,7 +66,20 @@ function buildAuditDescription(log) {
   const entity = log.entity ? `sur ${log.entity}` : "";
   const result = log.success ? "avec succes" : "avec echec";
   const details = detailsToText(log.details);
-  return `${actor} ${actionToText(log.action)} ${entity} (${result}). ${details}`.trim();
+  return `${actor} a effectue: ${actionToText(log.action)} ${entity} (${result}). ${details}`.trim();
+}
+
+function isTrackedAction(action) {
+  return TRACKED_ACTIONS.includes(String(action || "").toUpperCase());
+}
+
+function actionBadgeClass(action) {
+  const key = String(action || "").toUpperCase();
+  if (key === "INSERT") return "bg-emerald-100 text-emerald-700";
+  if (key === "UPDATE") return "bg-amber-100 text-amber-700";
+  if (key === "DELETE") return "bg-red-100 text-red-700";
+  if (key === "CREATE") return "bg-blue-100 text-blue-700";
+  return "bg-slate-100 text-slate-700";
 }
 
 export default function AdminAudit() {
@@ -109,12 +123,16 @@ export default function AdminAudit() {
     }
   }
 
-  const actions = useMemo(() => [...new Set(logs.map((item) => item.action).filter(Boolean))], [logs]);
+  const actions = useMemo(
+    () => [...new Set(logs.map((item) => item.action).filter((action) => isTrackedAction(action)))],
+    [logs],
+  );
   const entities = useMemo(() => [...new Set(logs.map((item) => item.entity).filter(Boolean))], [logs]);
 
   const filteredLogs = useMemo(() => {
     const query = search.trim().toLowerCase();
     return logs.filter((log) => {
+      if (!isTrackedAction(log.action)) return false;
       const haystack = [
         log.actor_email,
         log.actor_role,
@@ -148,7 +166,8 @@ export default function AdminAudit() {
         { key: "date", label: "Date" },
         { key: "acteur", label: "Acteur" },
         { key: "role", label: "Role" },
-        { key: "action", label: "Action" },
+        { key: "action", label: "Action technique" },
+        { key: "action_claire", label: "Action claire" },
         { key: "entity", label: "Entite" },
         { key: "entity_id", label: "ID entite" },
         { key: "path", label: "Page" },
@@ -159,6 +178,7 @@ export default function AdminAudit() {
         acteur: log.actor_email || "-",
         role: log.actor_role || "-",
         action: log.action || "-",
+        action_claire: actionToText(log.action),
         entity: log.entity || "-",
         entity_id: log.entity_id || "-",
         path: log.path || "-",
@@ -180,23 +200,25 @@ export default function AdminAudit() {
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold text-slate-900">Journal d'Audit</h1>
           <p className="mt-2 text-slate-600">
-            Suis tous les mouvements de l'application: navigation, creations, modifications, suppressions.
+            Suis uniquement les operations enregistrees: creations, ajouts, modifications et suppressions.
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <button
             onClick={loadAuditLogs}
             disabled={tableMissing}
-            className="w-full rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            className="w-full rounded-xl px-2 py-2 text-emerald-600 transition hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            title="Rafraichir"
           >
-            Rafraichir
+            <box-icon name="refresh" type="solid" color="currentColor"></box-icon>
           </button>
           <button
             onClick={handlePrintAudit}
             disabled={tableMissing}
-            className="w-full rounded-xl bg-slate-700 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            className="w-full rounded-xl px-2 py-2 text-slate-600 transition hover:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            title="Imprimer le journal"
           >
-            Imprimer le journal
+            <box-icon name="printer" type="solid" color="currentColor"></box-icon>
           </button>
         </div>
       </div>
@@ -221,27 +243,27 @@ export default function AdminAudit() {
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
-            <div className="grid gap-3 lg:grid-cols-5">
+            <div className="flex flex-wrap gap-3">
               <input
                 type="text"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Rechercher acteur/action/page..."
-                className="rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 lg:col-span-2"
+                placeholder="Rechercher acteur/action..."
+                className="min-w-[220px] flex-1 rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-emerald-500"
               />
-              <select value={actionFilter} onChange={(event) => setActionFilter(event.target.value)} className="rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500">
+              <select value={actionFilter} onChange={(event) => setActionFilter(event.target.value)} className="min-w-[190px] flex-1 rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-emerald-500">
                 <option value="">Toutes les actions</option>
                 {actions.map((action) => (
-                  <option key={action} value={action}>{action}</option>
+                  <option key={action} value={action}>{actionToText(action)}</option>
                 ))}
               </select>
-              <select value={entityFilter} onChange={(event) => setEntityFilter(event.target.value)} className="rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500">
+              <select value={entityFilter} onChange={(event) => setEntityFilter(event.target.value)} className="min-w-[190px] flex-1 rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-emerald-500">
                 <option value="">Toutes les entites</option>
                 {entities.map((entity) => (
                   <option key={entity} value={entity}>{entity}</option>
                 ))}
               </select>
-              <select value={successFilter} onChange={(event) => setSuccessFilter(event.target.value)} className="rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500">
+              <select value={successFilter} onChange={(event) => setSuccessFilter(event.target.value)} className="min-w-[190px] flex-1 rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-emerald-500">
                 <option value="">Succes + Echecs</option>
                 <option value="success">Succes</option>
                 <option value="failed">Echecs</option>
@@ -250,9 +272,6 @@ export default function AdminAudit() {
           </section>
 
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            {filteredLogs.length === 0 && (
-              <div className="px-5 py-10 text-center text-slate-500">Aucun log d'audit avec ces filtres.</div>
-            )}
             {filteredLogs.length > 0 && (
               <div className="grid gap-3 p-3 md:hidden">
                 {filteredLogs.map((log) => (
@@ -260,10 +279,10 @@ export default function AdminAudit() {
                     <p className="text-sm font-semibold text-slate-900">
                       {log.created_at ? new Date(log.created_at).toLocaleString("fr-FR") : "-"}
                     </p>
-                    <p className="mt-1 text-sm text-slate-700">{log.actor_email || "Utilisateur inconnu"}</p>
-                    <p className="mt-2 text-sm text-slate-700">{buildAuditDescription(log)}</p>
+                    <p className="mt-1 break-all text-sm text-slate-700">{log.actor_email || "Utilisateur inconnu"}</p>
+                    <p className="mt-2 break-words text-sm text-slate-700">{buildAuditDescription(log)}</p>
                     <div className="mt-2 flex items-center gap-2 text-xs">
-                      <span className="rounded-full bg-slate-200 px-2.5 py-1 text-slate-700">{log.action || "-"}</span>
+                      <span className={`rounded-full px-2.5 py-1 ${actionBadgeClass(log.action)}`}>{actionToText(log.action)}</span>
                       <span className="rounded-full bg-slate-200 px-2.5 py-1 text-slate-700">{log.entity || "-"}</span>
                       <span className={`rounded-full px-2.5 py-1 font-semibold ${log.success ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
                         {log.success ? "Succes" : "Echec"}
@@ -275,7 +294,7 @@ export default function AdminAudit() {
             )}
 
             <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-[1200px] w-full">
+              <table className="w-full min-w-[1080px]">
                 <thead className="bg-slate-100 text-left text-sm text-slate-600">
                   <tr>
                     <th className="px-5 py-4 font-semibold">Date</th>
@@ -298,21 +317,25 @@ export default function AdminAudit() {
                   ) : (
                     filteredLogs.map((log) => (
                       <tr key={log.id} className="border-t border-slate-100 text-sm text-slate-700">
-                        <td className="px-5 py-4">{log.created_at ? new Date(log.created_at).toLocaleString("fr-FR") : "-"}</td>
-                        <td className="px-5 py-4">{log.actor_email || "-"}</td>
+                        <td className="px-5 py-4 whitespace-nowrap">{log.created_at ? new Date(log.created_at).toLocaleString("fr-FR") : "-"}</td>
+                        <td className="px-5 py-4 max-w-[220px] break-all">{log.actor_email || "-"}</td>
                         <td className="px-5 py-4">{log.actor_role || "-"}</td>
-                        <td className="px-5 py-4">{log.action || "-"}</td>
                         <td className="px-5 py-4">
+                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${actionBadgeClass(log.action)}`}>
+                            {actionToText(log.action)}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 max-w-[180px] break-words">
                           <div>{log.entity || "-"}</div>
                           <div className="text-xs text-slate-500">{log.entity_id || ""}</div>
                         </td>
-                        <td className="px-5 py-4">{log.path || "-"}</td>
+                        <td className="px-5 py-4 max-w-[180px] break-all">{log.path || "-"}</td>
                         <td className="px-5 py-4">
                           <span className={`rounded-full px-3 py-1 text-xs font-semibold ${log.success ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
                             {log.success ? "Succes" : "Echec"}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-xs text-slate-600 max-w-[420px]">
+                        <td className="px-5 py-4 max-w-[420px] text-xs text-slate-600">
                           <p className="whitespace-pre-wrap break-words">{buildAuditDescription(log)}</p>
                         </td>
                       </tr>

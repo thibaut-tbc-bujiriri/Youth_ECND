@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import Loading from "../../components/Loading";
 import { printTableReport } from "../../lib/printUtils";
+import { useConfirm } from "../../context/ConfirmContext";
 import "boxicons";
 
 function roleFromUserRow(userRow) {
@@ -9,6 +10,7 @@ function roleFromUserRow(userRow) {
 }
 
 export default function AdminUtilisateurs() {
+  const { confirm } = useConfirm();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -131,7 +133,13 @@ export default function AdminUtilisateurs() {
   }
 
   async function handleDeleteUser(userId) {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
+    const approved = await confirm({
+      title: "Supprimer l'utilisateur",
+      message: "Etes-vous sur de vouloir supprimer cet utilisateur ?",
+      confirmText: "Supprimer",
+      tone: "danger",
+    });
+    if (!approved) return;
 
     try {
       setError(null);
@@ -226,7 +234,7 @@ export default function AdminUtilisateurs() {
   if (loading) return <Loading />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-3 sm:p-8">
+    <div className="min-h-screen p-3 sm:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -238,19 +246,19 @@ export default function AdminUtilisateurs() {
           </div>
           <button
             onClick={openAddModal}
-            className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition shadow-lg"
+            className="w-full sm:w-auto px-2 py-2 text-emerald-600 transition hover:text-emerald-500"
+            title="Creer via inscription"
           >
-            <box-icon name="user-plus" type="solid"></box-icon>
-            Creer via inscription
+            <box-icon name="user-plus" type="solid" color="currentColor"></box-icon>
           </button>
         </div>
         <div className="mb-6">
           <button
             onClick={handlePrintUsers}
-            className="w-full sm:w-auto bg-slate-700 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg font-semibold flex items-center justify-center gap-2 transition"
+            className="w-full sm:w-auto px-2 py-2 text-slate-600 transition hover:text-slate-400"
+            title="Imprimer la liste des utilisateurs"
           >
-            <box-icon name="printer" type="solid" color="#ffffff"></box-icon>
-            Imprimer la liste des utilisateurs
+            <box-icon name="printer" type="solid" color="currentColor"></box-icon>
           </button>
         </div>
 
@@ -278,7 +286,7 @@ export default function AdminUtilisateurs() {
             placeholder="Rechercher par email ou rôle..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-3 pl-10 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
           <box-icon name="search" class="absolute left-3 top-3.5"></box-icon>
         </div>
@@ -306,7 +314,7 @@ export default function AdminUtilisateurs() {
                         value={user.role === "sans-role" ? "membre" : user.role}
                         onChange={(e) => handleRoleChange(user.id, e.target.value)}
                         className={`w-full px-3 py-2 rounded-lg font-semibold text-white cursor-pointer ${
-                          user.role === "admin" ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"
+                          user.role === "admin" ? "bg-red-500 hover:bg-red-600" : "bg-emerald-600 hover:bg-emerald-700"
                         }`}
                       >
                         <option value="membre">Membre</option>
@@ -316,19 +324,17 @@ export default function AdminUtilisateurs() {
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <button
                         onClick={() => openEditModal(user)}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition flex items-center justify-center gap-2"
+                        className="px-1 py-1 text-emerald-600 transition hover:text-emerald-500 flex items-center justify-center"
                         title="Modifier"
                       >
-                        <box-icon name="edit" type="solid" color="#ffffff" size="sm"></box-icon>
-                        Modifier
+                        <box-icon name="edit" type="solid" color="currentColor" size="sm"></box-icon>
                       </button>
                       <button
                         onClick={() => handleDeleteUser(user.id)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg transition flex items-center justify-center gap-2"
+                        className="px-1 py-1 text-red-500 transition hover:text-red-400 flex items-center justify-center"
                         title="Supprimer"
                       >
-                        <box-icon name="trash" type="solid" color="#ffffff" size="sm"></box-icon>
-                        Supprimer
+                        <box-icon name="trash" type="solid" color="currentColor" size="sm"></box-icon>
                       </button>
                     </div>
                   </article>
@@ -337,7 +343,7 @@ export default function AdminUtilisateurs() {
 
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[760px]">
-                  <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                  <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
                     <tr>
                       <th className="px-6 py-4 text-left font-semibold">Email</th>
                       <th className="px-6 py-4 text-left font-semibold">Rôle</th>
@@ -354,7 +360,7 @@ export default function AdminUtilisateurs() {
                             value={user.role === "sans-role" ? "membre" : user.role}
                             onChange={(e) => handleRoleChange(user.id, e.target.value)}
                             className={`px-3 py-2 rounded-lg font-semibold text-white cursor-pointer ${
-                              user.role === "admin" ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"
+                              user.role === "admin" ? "bg-red-500 hover:bg-red-600" : "bg-emerald-600 hover:bg-emerald-700"
                             }`}
                           >
                             <option value="membre">Membre</option>
@@ -368,17 +374,17 @@ export default function AdminUtilisateurs() {
                           <div className="flex justify-center gap-3">
                             <button
                               onClick={() => openEditModal(user)}
-                              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition"
+                              className="px-1 py-1 text-emerald-600 transition hover:text-emerald-500"
                               title="Modifier"
                             >
-                              <box-icon name="edit" type="solid"></box-icon>
+                              <box-icon name="edit" type="solid" color="currentColor"></box-icon>
                             </button>
                             <button
                               onClick={() => handleDeleteUser(user.id)}
-                              className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg transition"
+                              className="px-1 py-1 text-red-500 transition hover:text-red-400"
                               title="Supprimer"
                             >
-                              <box-icon name="trash" type="solid"></box-icon>
+                              <box-icon name="trash" type="solid" color="currentColor"></box-icon>
                             </button>
                           </div>
                         </td>
@@ -396,9 +402,9 @@ export default function AdminUtilisateurs() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm">Total Utilisateurs</p>
-                <p className="text-3xl font-bold text-blue-600">{filteredUsers.length}</p>
+                <p className="text-3xl font-bold text-emerald-700">{filteredUsers.length}</p>
               </div>
-              <box-icon name="user-circle" type="solid" size="lg" class="text-blue-400"></box-icon>
+              <box-icon name="user-circle" type="solid" size="lg" class="text-emerald-400"></box-icon>
             </div>
           </div>
 
@@ -418,11 +424,11 @@ export default function AdminUtilisateurs() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm">Membres</p>
-                <p className="text-3xl font-bold text-green-600">
+                <p className="text-3xl font-bold text-emerald-700">
                   {filteredUsers.filter((u) => u.role === "membre").length}
                 </p>
               </div>
-              <box-icon name="group" type="solid" size="lg" class="text-green-400"></box-icon>
+              <box-icon name="group" type="solid" size="lg" class="text-emerald-400"></box-icon>
             </div>
           </div>
         </div>
@@ -452,7 +458,7 @@ export default function AdminUtilisateurs() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="utilisateur@example.com"
                   disabled={!!editingUser}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -463,7 +469,7 @@ export default function AdminUtilisateurs() {
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="membre">Membre</option>
                   <option value="admin">Administrateur</option>
@@ -487,7 +493,7 @@ export default function AdminUtilisateurs() {
               </button>
               <button
                 onClick={handleSaveUser}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold transition flex items-center justify-center gap-2"
               >
                 <box-icon name="check" type="solid"></box-icon>
                 Enregistrer

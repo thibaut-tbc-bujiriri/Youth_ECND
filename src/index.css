@@ -5,10 +5,41 @@
 /* ton ancien CSS peut rester en dessous si tu veux */
 
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
+  --app-bg: #eef2f0;
+  --card-bg: #f8fbf8;
+  --panel-bg: #f1f6f3;
+  --text-main: #10253d;
+  --text-muted: #486077;
+  --border-main: #d3dfd7;
+  --brand-primary: #357b54;
+  --brand-primary-strong: #2a6745;
+  --brand-accent: #eab259;
+  --brand-accent-strong: #dba049;
+  --status-danger-bg: #ffe8e8;
+  --status-danger-text: #a63434;
+  --status-warn-bg: #fff3dd;
+  --status-warn-text: #9c640f;
+  --status-info-bg: #e7f2ec;
+  --status-info-text: #2f6b47;
+}
+
+html[data-theme="dark"] {
+  --app-bg: #020b1d;
+  --card-bg: #07142d;
+  --panel-bg: #0d1f3f;
+  --text-main: #edf4ff;
+  --text-muted: #bfd0e6;
+  --border-main: #1e355a;
+  --brand-primary: #58a374;
+  --brand-primary-strong: #469066;
+  --brand-accent: #efba67;
+  --brand-accent-strong: #dea34d;
+  --status-danger-bg: #381b26;
+  --status-danger-text: #ffb9c7;
+  --status-warn-bg: #3a2b12;
+  --status-warn-text: #ffd38a;
+  --status-info-bg: #143125;
+  --status-info-text: #98ddb8;
 }
 
 /* tu peux garder ton style */
@@ -16,6 +47,8 @@ body {
   margin: 0;
   min-width: 320px;
   overflow-x: hidden;
+  background: var(--app-bg);
+  color: var(--text-main);
 }
 
 *,
@@ -34,4 +67,232 @@ svg {
 
 table {
   width: 100%;
+  border-collapse: collapse;
+}
+
+/* Theme bridge for existing Tailwind utility classes used across app pages. */
+.bg-white {
+  background-color: var(--card-bg) !important;
+}
+.bg-slate-50 {
+  background-color: var(--app-bg) !important;
+}
+.bg-slate-100 {
+  background-color: var(--panel-bg) !important;
+}
+.text-slate-900,
+.text-slate-800 {
+  color: var(--text-main) !important;
+}
+.text-slate-700,
+.text-slate-600,
+.text-slate-500 {
+  color: var(--text-muted) !important;
+}
+.text-gray-900,
+.text-gray-800,
+.text-gray-700 {
+  color: var(--text-main) !important;
+}
+.text-gray-600,
+.text-gray-500,
+.text-gray-400 {
+  color: var(--text-muted) !important;
+}
+.border-slate-200,
+.border-slate-300,
+.border-slate-100 {
+  border-color: var(--border-main) !important;
+}
+.ring-slate-200,
+.ring-slate-300 {
+  --tw-ring-color: var(--border-main) !important;
+}
+
+.border-l-blue-500,
+.border-l-cyan-500,
+.border-l-green-500,
+.border-l-emerald-500,
+.border-l-purple-500,
+.border-l-orange-500 {
+  border-left-color: var(--brand-primary) !important;
+}
+
+.bg-blue-600,
+.bg-blue-500,
+.bg-cyan-500,
+.bg-emerald-600,
+.bg-green-600 {
+  background-color: var(--brand-primary) !important;
+}
+.bg-blue-50,
+.bg-cyan-50,
+.bg-cyan-100,
+.bg-emerald-50,
+.bg-green-50 {
+  background-color: color-mix(in srgb, var(--brand-primary) 16%, transparent) !important;
+}
+.hover\:bg-blue-700:hover,
+.hover\:bg-blue-600:hover,
+.hover\:bg-blue-500:hover,
+.hover\:bg-cyan-600:hover,
+.hover\:bg-cyan-400:hover,
+.hover\:bg-emerald-700:hover,
+.hover\:bg-green-700:hover {
+  background-color: var(--brand-primary-strong) !important;
+}
+.hover\:bg-blue-50:hover,
+.hover\:bg-slate-50:hover {
+  background-color: color-mix(in srgb, var(--panel-bg) 72%, var(--card-bg)) !important;
+}
+
+.text-blue-600,
+.text-blue-700,
+.text-cyan-600,
+.text-cyan-700,
+.text-emerald-700 {
+  color: var(--brand-primary) !important;
+}
+.text-blue-900,
+.text-emerald-900,
+.text-cyan-900 {
+  color: var(--text-main) !important;
+}
+.border-blue-200,
+.border-cyan-200,
+.border-emerald-200,
+.border-green-200 {
+  border-color: color-mix(in srgb, var(--brand-primary) 35%, var(--border-main)) !important;
+}
+
+.bg-amber-500,
+.bg-orange-500 {
+  background-color: var(--brand-accent) !important;
+}
+.bg-amber-50,
+.bg-orange-50 {
+  background-color: var(--status-warn-bg) !important;
+}
+.hover\:bg-amber-600:hover,
+.hover\:bg-orange-600:hover {
+  background-color: var(--brand-accent-strong) !important;
+}
+.text-amber-700,
+.text-orange-700 {
+  color: var(--status-warn-text) !important;
+}
+.text-amber-900,
+.text-orange-900 {
+  color: var(--text-main) !important;
+}
+.border-amber-200,
+.border-orange-200 {
+  border-color: color-mix(in srgb, var(--brand-accent) 45%, var(--border-main)) !important;
+}
+
+.bg-red-50,
+.bg-rose-50 {
+  background-color: var(--status-danger-bg) !important;
+}
+.text-red-700,
+.text-rose-700 {
+  color: var(--status-danger-text) !important;
+}
+.text-red-900,
+.text-rose-900 {
+  color: var(--text-main) !important;
+}
+.border-red-200,
+.border-rose-200 {
+  border-color: color-mix(in srgb, var(--status-danger-text) 35%, var(--border-main)) !important;
+}
+.bg-purple-50,
+.bg-purple-100 {
+  background-color: color-mix(in srgb, var(--panel-bg) 78%, var(--app-bg)) !important;
+}
+.text-purple-600,
+.text-purple-700 {
+  color: var(--text-muted) !important;
+}
+.text-purple-900 {
+  color: var(--text-main) !important;
+}
+.border-purple-200 {
+  border-color: var(--border-main) !important;
+}
+
+.from-blue-500,
+.from-blue-600,
+.from-blue-700,
+.from-indigo-900,
+.from-slate-900,
+.from-indigo-950 {
+  --tw-gradient-from: #06142f var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(6 20 47 / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+.via-indigo-900,
+.via-slate-900 {
+  --tw-gradient-to: rgb(10 26 54 / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #0a1a36 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+}
+.to-blue-700,
+.to-blue-800,
+.to-cyan-500,
+.to-sky-900 {
+  --tw-gradient-to: #102a4a var(--tw-gradient-to-position) !important;
+}
+
+html[data-theme="dark"] .bg-white {
+  background-color: var(--card-bg) !important;
+}
+html[data-theme="dark"] .bg-slate-50 {
+  background-color: var(--app-bg) !important;
+}
+html[data-theme="dark"] .bg-slate-100 {
+  background-color: var(--panel-bg) !important;
+}
+html[data-theme="dark"] .shadow-sm,
+html[data-theme="dark"] .shadow-md,
+html[data-theme="dark"] .shadow-lg {
+  box-shadow: 0 10px 28px rgba(2, 8, 22, 0.45) !important;
+}
+html[data-theme="dark"] .text-slate-500,
+html[data-theme="dark"] .text-slate-600,
+html[data-theme="dark"] .text-slate-700,
+html[data-theme="dark"] .text-gray-500,
+html[data-theme="dark"] .text-gray-600,
+html[data-theme="dark"] .text-gray-700 {
+  color: #d3e0f0 !important;
+}
+html[data-theme="dark"] .text-slate-800,
+html[data-theme="dark"] .text-slate-900,
+html[data-theme="dark"] .text-gray-800,
+html[data-theme="dark"] .text-gray-900 {
+  color: #eef5ff !important;
+}
+html[data-theme="dark"] .admin-shell,
+html[data-theme="dark"] .member-shell {
+  background: linear-gradient(180deg, #020b1d 0%, #031126 100%) !important;
+}
+html[data-theme="dark"] .surface-hero {
+  background: linear-gradient(135deg, #061634 0%, #081126 58%, #241a24 100%) !important;
+  border-color: rgba(115, 143, 175, 0.25) !important;
+}
+html[data-theme="dark"] table thead {
+  background-color: #0d1f3f !important;
+}
+html[data-theme="dark"] table tbody tr {
+  border-top-color: #1e355a !important;
+}
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  background-color: #091a35 !important;
+  color: #edf4ff !important;
+  border-color: #24466e !important;
+}
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #98afc9 !important;
 }

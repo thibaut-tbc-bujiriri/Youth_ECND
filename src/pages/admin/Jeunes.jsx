@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import Loading from "../../components/Loading";
 import { printTableReport } from "../../lib/printUtils";
+import { useConfirm } from "../../context/ConfirmContext";
 
 const defaultForm = {
   nom: "",
@@ -30,7 +31,21 @@ function formatFullName(jeune) {
   return [jeune.nom, jeune.postnom, jeune.prenom].filter(Boolean).join(" ");
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function safeValue(value, fallback = "-") {
+  return escapeHtml(value ?? fallback);
+}
+
 export default function AdminJeunes() {
+  const { confirm } = useConfirm();
   const [jeunes, setJeunes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -186,7 +201,13 @@ export default function AdminJeunes() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Supprimer cette fiche jeune ?")) return;
+    const approved = await confirm({
+      title: "Supprimer la fiche",
+      message: "Voulez-vous supprimer cette fiche jeune ?",
+      confirmText: "Supprimer",
+      tone: "danger",
+    });
+    if (!approved) return;
 
     try {
       setError("");
@@ -263,6 +284,94 @@ export default function AdminJeunes() {
     });
   }
 
+  function handlePrintJeuneCard(jeune) {
+    const printWindow = window.open("", "_blank", "width=900,height=1000");
+    if (!printWindow) return;
+
+    const fullName = formatFullName(jeune) || "Jeune";
+    const safeName = safeValue(fullName);
+    const photoBlock = jeune.photo_url
+      ? `<img src="${escapeHtml(jeune.photo_url)}" alt="Photo ${safeName}" class="photo" />`
+      : `<div class="photo-placeholder">${(jeune.prenom?.[0] || jeune.nom?.[0] || "J").toUpperCase()}</div>`;
+
+    const html = `
+      <!doctype html>
+      <html lang="fr">
+        <head>
+          <meta charset="utf-8" />
+          <title>Carte Jeune - ${safeName}</title>
+          <style>
+            @page { size: A4 portrait; margin: 12mm; }
+            body { font-family: "Segoe UI", Arial, sans-serif; margin: 0; color: #0f172a; background: #f8fafc; }
+            .card {
+              max-width: 760px;
+              margin: 16px auto;
+              border: 2px solid #1d4ed8;
+              border-radius: 16px;
+              background: white;
+              overflow: hidden;
+              box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12);
+            }
+            .head {
+              background: linear-gradient(135deg, #1d4ed8, #1e3a8a);
+              color: white;
+              padding: 18px 22px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .title { margin: 0; font-size: 22px; font-weight: 700; }
+            .subtitle { margin-top: 4px; font-size: 12px; opacity: 0.9; }
+            .meta { font-size: 11px; opacity: 0.9; }
+            .body { display: grid; grid-template-columns: 150px 1fr; gap: 16px; padding: 20px; }
+            .photo { width: 140px; height: 170px; object-fit: cover; border-radius: 10px; border: 1px solid #cbd5e1; }
+            .photo-placeholder {
+              width: 140px; height: 170px; border-radius: 10px; border: 1px dashed #94a3b8;
+              display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: 700; color: #475569;
+              background: #f1f5f9;
+            }
+            .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+            .item { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; background: #f8fafc; }
+            .label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+            .value { font-size: 14px; font-weight: 600; color: #0f172a; word-break: break-word; }
+            .footer { padding: 0 20px 18px; font-size: 11px; color: #64748b; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="head">
+              <div>
+                <h1 class="title">Carte Jeune</h1>
+                <div class="subtitle">Eglise Chretienne pour le nouveau depart</div>
+              </div>
+              <div class="meta">Imprime le ${new Date().toLocaleDateString("fr-FR")}</div>
+            </div>
+            <div class="body">
+              <div>${photoBlock}</div>
+              <div class="grid">
+                <div class="item"><div class="label">Nom complet</div><div class="value">${safeName}</div></div>
+                <div class="item"><div class="label">Telephone</div><div class="value">${safeValue(jeune.telephone)}</div></div>
+                <div class="item"><div class="label">Adresse</div><div class="value">${safeValue(jeune.adresse)}</div></div>
+                <div class="item"><div class="label">Profession</div><div class="value">${safeValue(jeune.profession)}</div></div>
+                <div class="item"><div class="label">Etat spirituel</div><div class="value">${safeValue(jeune.etat_spirituel)}</div></div>
+                <div class="item"><div class="label">Statut</div><div class="value">${safeValue(jeune.status || jeune.statut)}</div></div>
+                <div class="item"><div class="label">Vocation</div><div class="value">${safeValue(jeune.vocation)}</div></div>
+                <div class="item"><div class="label">Talent / Don</div><div class="value">${safeValue([jeune.talent, jeune.don].filter(Boolean).join(" / "), "-")}</div></div>
+              </div>
+            </div>
+            <div class="footer">Document interne jeunesse ECND.</div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 250);
+  }
+
   if (loading) return <Loading message="Chargement des jeunes..." />;
 
   return (
@@ -277,15 +386,17 @@ export default function AdminJeunes() {
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <button
             onClick={handlePrintJeunes}
-            className="w-full rounded-xl bg-slate-700 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-slate-800 sm:w-auto"
+            className="w-full rounded-xl px-2 py-2 text-slate-600 transition hover:text-slate-400 sm:w-auto"
+            title="Imprimer la liste"
           >
-            Imprimer la liste
+            <box-icon name="printer" type="solid" color="currentColor"></box-icon>
           </button>
           <button
             onClick={openCreateModal}
-            className="w-full rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto"
+            className="w-full rounded-xl px-2 py-2 text-emerald-600 transition hover:text-emerald-500 sm:w-auto"
+            title="Ajouter un jeune"
           >
-            + Ajouter un jeune
+            <box-icon name="user-plus" type="solid" color="currentColor"></box-icon>
           </button>
         </div>
       </div>
@@ -319,12 +430,12 @@ export default function AdminJeunes() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Rechercher nom, téléphone, profession..."
-            className="rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500"
+            className="rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-emerald-500"
           />
           <select
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
-            className="rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500"
+            className="rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-emerald-500"
           >
             <option value="">Tous les statuts</option>
             {activityOptions.map((option) => (
@@ -334,7 +445,7 @@ export default function AdminJeunes() {
           <select
             value={spiritualFilter}
             onChange={(event) => setSpiritualFilter(event.target.value)}
-            className="rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500"
+            className="rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-emerald-500"
           >
             <option value="">Tous les états spirituels</option>
             {spiritualOptions.map((option) => (
@@ -372,7 +483,7 @@ export default function AdminJeunes() {
                       className="h-12 w-12 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-emerald-700">
                       {jeune.prenom?.[0] || jeune.nom?.[0] || "J"}
                     </div>
                   )}
@@ -387,18 +498,27 @@ export default function AdminJeunes() {
                   <p><span className="font-medium">Profession:</span> {jeune.profession || "-"}</p>
                   <p><span className="font-medium">Statut:</span> {jeune.status || jeune.statut || "-"}</p>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handlePrintJeuneCard(jeune)}
+                    className="rounded-lg px-1 py-1 text-slate-600 transition hover:text-slate-400"
+                    title="Imprimer carte"
+                  >
+                    <box-icon name="printer" type="solid" color="currentColor" size="sm"></box-icon>
+                  </button>
                   <button
                     onClick={() => openEditModal(jeune)}
-                    className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
+                    className="rounded-lg px-1 py-1 text-emerald-600 transition hover:text-emerald-500"
+                    title="Modifier"
                   >
-                    Modifier
+                    <box-icon name="edit" type="solid" color="currentColor" size="sm"></box-icon>
                   </button>
                   <button
                     onClick={() => handleDelete(jeune.id)}
-                    className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700"
+                    className="rounded-lg px-1 py-1 text-red-500 transition hover:text-red-400"
+                    title="Supprimer"
                   >
-                    Supprimer
+                    <box-icon name="trash" type="solid" color="currentColor" size="sm"></box-icon>
                   </button>
                 </div>
               </article>
@@ -437,7 +557,7 @@ export default function AdminJeunes() {
                             className="h-12 w-12 rounded-full object-cover"
                           />
                         ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-emerald-700">
                             {jeune.prenom?.[0] || jeune.nom?.[0] || "J"}
                           </div>
                         )}
@@ -461,16 +581,25 @@ export default function AdminJeunes() {
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-2">
                         <button
-                          onClick={() => openEditModal(jeune)}
-                          className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
+                          onClick={() => handlePrintJeuneCard(jeune)}
+                          className="rounded-lg px-1 py-1 text-slate-600 transition hover:text-slate-400"
+                          title="Imprimer carte"
                         >
-                          Modifier
+                          <box-icon name="printer" type="solid" color="currentColor" size="sm"></box-icon>
+                        </button>
+                        <button
+                          onClick={() => openEditModal(jeune)}
+                          className="rounded-lg px-1 py-1 text-emerald-600 transition hover:text-emerald-500"
+                          title="Modifier"
+                        >
+                          <box-icon name="edit" type="solid" color="currentColor" size="sm"></box-icon>
                         </button>
                         <button
                           onClick={() => handleDelete(jeune.id)}
-                          className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700"
+                          className="rounded-lg px-1 py-1 text-red-500 transition hover:text-red-400"
+                          title="Supprimer"
                         >
-                          Supprimer
+                          <box-icon name="trash" type="solid" color="currentColor" size="sm"></box-icon>
                         </button>
                       </div>
                     </td>
@@ -589,7 +718,7 @@ export default function AdminJeunes() {
                     <img src={form.photo_url} alt="Aperçu" className="h-20 w-20 rounded-2xl object-cover" />
                     <div>
                       <p className="text-sm font-medium text-slate-700">Photo actuelle</p>
-                      <a href={form.photo_url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline">
+                      <a href={form.photo_url} target="_blank" rel="noreferrer" className="text-sm text-emerald-700 hover:underline">
                         Ouvrir l'image
                       </a>
                     </div>
@@ -601,7 +730,7 @@ export default function AdminJeunes() {
                 <button onClick={closeModal} className="rounded-xl border border-slate-300 px-5 py-3 font-medium text-slate-700 hover:bg-slate-50">
                   Annuler
                 </button>
-                <button onClick={handleSave} disabled={saving || uploading} className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                <button onClick={handleSave} disabled={saving || uploading} className="rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
                   {saving ? "Enregistrement..." : editingJeune ? "Mettre à jour" : "Enregistrer"}
                 </button>
               </div>

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useSystemSettings } from "../../context/SystemSettingsContext";
+import Loading from "../../components/Loading";
+import { queueEmailNotification } from "../../lib/emailNotifications";
+import { useConfirm } from "../../context/ConfirmContext";
 
 const defaultSettings = {
   organization_name: "YOUTH ECND - Les Batisseurs Vision 26-27",
@@ -8,6 +11,7 @@ const defaultSettings = {
   maintenance_mode: false,
   registrations_open: true,
   email_notifications: true,
+  session_duration_minutes: 120,
 };
 
 function isMissingRelationError(error) {
@@ -15,6 +19,7 @@ function isMissingRelationError(error) {
 }
 
 export default function AdminSettings() {
+  const { confirm } = useConfirm();
   const { reloadSettings } = useSystemSettings();
   const [settings, setSettings] = useState(defaultSettings);
   const [loading, setLoading] = useState(true);
@@ -48,6 +53,7 @@ export default function AdminSettings() {
           maintenance_mode: Boolean(data.maintenance_mode),
           registrations_open: Boolean(data.registrations_open),
           email_notifications: Boolean(data.email_notifications),
+          session_duration_minutes: Number(data.session_duration_minutes || 120),
         });
       } else {
         setSettings(defaultSettings);
@@ -79,6 +85,7 @@ export default function AdminSettings() {
         maintenance_mode: settings.maintenance_mode,
         registrations_open: settings.registrations_open,
         email_notifications: settings.email_notifications,
+        session_duration_minutes: Math.max(5, Number(settings.session_duration_minutes || 120)),
       };
 
       const { error: upsertError } = await supabase
@@ -87,7 +94,8 @@ export default function AdminSettings() {
 
       if (upsertError) throw upsertError;
       await reloadSettings();
-      setSuccess("Parametres enregistres.");
+      await notifyUsersForUpdate();
+      setSuccess("Parametres enregistres. Les utilisateurs sont notifies d'appliquer la mise a jour.");
       setTimeout(() => setSuccess(""), 2500);
     } catch (err) {
       console.error("[ADMIN_SETTINGS] save:", err);
@@ -109,6 +117,7 @@ export default function AdminSettings() {
         maintenance_mode: key === "maintenance_mode" ? value : settings.maintenance_mode,
         registrations_open: key === "registrations_open" ? value : settings.registrations_open,
         email_notifications: key === "email_notifications" ? value : settings.email_notifications,
+        session_duration_minutes: Math.max(5, Number(settings.session_duration_minutes || 120)),
       };
 
       const { error: upsertError } = await supabase
@@ -117,7 +126,24 @@ export default function AdminSettings() {
       if (upsertError) throw upsertError;
 
       await reloadSettings();
-      setSuccess("Option systeme mise a jour.");
+      if (key === "maintenance_mode" && value) {
+        await queueEmailNotification({
+          type: "maintenance_enabled",
+          subject: "Maintenance YOUTH ECND",
+          message:
+            "La plateforme est en maintenance. Merci de patienter, puis d'appliquer les mises a jour a la reprise.",
+        });
+        setSuccess("Maintenance activee. Les utilisateurs non-admin seront deconnectes automatiquement.");
+      } else if (key === "maintenance_mode" && !value) {
+        await queueEmailNotification({
+          type: "maintenance_disabled",
+          subject: "Fin de maintenance YOUTH ECND",
+          message: "La maintenance est terminee. Merci d'actualiser l'application pour reprendre.",
+        });
+        setSuccess("Maintenance desactivee.");
+      } else {
+        setSuccess("Option systeme mise a jour.");
+      }
       setTimeout(() => setSuccess(""), 1600);
     } catch (err) {
       console.error("[ADMIN_SETTINGS] saveSystemSwitch:", err);
@@ -155,8 +181,35 @@ export default function AdminSettings() {
     }
   }
 
+  async function notifyUsersForUpdate() {
+    try {
+      const { data: usersRows, error: usersError } = await supabase.from("users").select("email");
+      if (usersError) throw usersError;
+      const recipients = (usersRows || []).map((item) => item.email).filter(Boolean);
+      if (!recipients.length) return;
+
+      const rows = recipients.map((recipient) => ({
+        type: "app_update_notice",
+        recipient,
+        subject: "Mise a jour YOUTH ECND",
+        message: "Une mise a jour est disponible. Merci d'actualiser l'application pour appliquer les changements.",
+        payload: { source: "admin_settings_save" },
+        status: "pending",
+      }));
+      const { error } = await supabase.from("email_notification_queue").insert(rows);
+      if (error) throw error;
+    } catch (err) {
+      console.warn("[ADMIN_SETTINGS] notifyUsersForUpdate:", err?.message || err);
+    }
+  }
+
   async function logoutCurrentSession() {
-    const confirmed = window.confirm("Deconnecter la session actuelle ?");
+    const confirmed = await confirm({
+      title: "Deconnecter la session",
+      message: "Voulez-vous deconnecter la session actuelle ?",
+      confirmText: "Deconnecter",
+      tone: "warning",
+    });
     if (!confirmed) return;
 
     const { error: signOutError } = await supabase.auth.signOut();
@@ -169,11 +222,7 @@ export default function AdminSettings() {
   }
 
   if (loading) {
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">
-        Chargement des parametres...
-      </div>
-    );
+    return <Loading message="Chargement des parametres..." />;
   }
 
   return (
@@ -207,6 +256,23 @@ export default function AdminSettings() {
               type="email"
               value={settings.contact_email}
               onChange={(e) => setSettings((current) => ({ ...current, contact_email: e.target.value }))}
+              className="w-full rounded-xl border border-slate-300 px-4 py-3"
+              disabled={tableMissing}
+            />
+          </label>
+          <label className="space-y-2 md:col-span-2">
+            <span className="text-sm font-medium text-slate-700">Duree de session utilisateur (minutes)</span>
+            <input
+              type="number"
+              min="5"
+              max="1440"
+              value={settings.session_duration_minutes}
+              onChange={(e) =>
+                setSettings((current) => ({
+                  ...current,
+                  session_duration_minutes: e.target.value,
+                }))
+              }
               className="w-full rounded-xl border border-slate-300 px-4 py-3"
               disabled={tableMissing}
             />

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import Loading from "../../components/Loading";
+import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
 import "boxicons";
 
 function currency(value) {
@@ -45,6 +47,12 @@ const quickLinks = [
     icon: "money",
   },
   {
+    title: "CV des membres",
+    description: "Consulter les CV televerses",
+    path: "/admin/cv",
+    icon: "file",
+  },
+  {
     title: "Activites",
     description: "Programmer et gerer les activites",
     path: "/admin/activites",
@@ -53,6 +61,9 @@ const quickLinks = [
 ];
 
 export default function AdminDashboard() {
+  const { user } = useAuth();
+  const { theme } = useTheme();
+  const [profileName, setProfileName] = useState("");
   const [stats, setStats] = useState({
     totalJeunes: 0,
     activesJeunes: 0,
@@ -70,6 +81,24 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchStats();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function loadAdminName() {
+      if (!user?.id) {
+        setProfileName("");
+        return;
+      }
+      const { data, error } = await supabase.from("users").select("*").eq("auth_id", user.id).maybeSingle();
+      if (error || !active) return;
+      const fullName = [data?.nom, data?.postnom, data?.prenom].filter(Boolean).join(" ").trim();
+      setProfileName(fullName || data?.full_name || "");
+    }
+    loadAdminName();
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   async function fetchStats() {
     try {
@@ -143,14 +172,14 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
-        <div className="rounded-2xl border-l-4 border-blue-500 bg-white p-6 shadow-md">
+        <div className="rounded-2xl border-l-4 border-emerald-500 bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600">Total Jeunes</p>
               <p className="mt-2 text-3xl font-bold text-slate-900">{stats.totalJeunes}</p>
               <p className="mt-2 text-xs text-slate-500">Membres actifs: {stats.activesJeunes}</p>
             </div>
-            <box-icon name="group" type="solid" size="lg" class="text-blue-400"></box-icon>
+            <box-icon name="group" type="solid" size="lg" class="text-emerald-400"></box-icon>
           </div>
         </div>
 
@@ -165,18 +194,18 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl border-l-4 border-purple-500 bg-white p-6 shadow-md">
+        <div className="rounded-2xl border-l-4 border-emerald-500 bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600">Utilisateurs</p>
               <p className="mt-2 text-3xl font-bold text-slate-900">{stats.totalUtilisateurs}</p>
               <p className="mt-2 text-xs text-slate-500">Admins + Membres</p>
             </div>
-            <box-icon name="user-circle" type="solid" size="lg" class="text-purple-400"></box-icon>
+            <box-icon name="user-circle" type="solid" size="lg" class="text-emerald-400"></box-icon>
           </div>
         </div>
 
-        <div className="rounded-2xl border-l-4 border-orange-500 bg-white p-6 shadow-md">
+        <div className="rounded-2xl border-l-4 border-amber-500 bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600">Activites</p>
@@ -187,7 +216,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl border-l-4 border-cyan-500 bg-white p-6 shadow-md">
+        <div className="rounded-2xl border-l-4 border-emerald-500 bg-white p-6 shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600">Taux d'activite</p>
@@ -196,16 +225,19 @@ export default function AdminDashboard() {
               </p>
               <p className="mt-2 text-xs text-slate-500">Jeunes suivis comme actifs</p>
             </div>
-            <box-icon name="trending-up" type="solid" size="lg" class="text-cyan-400"></box-icon>
+            <box-icon name="trending-up" type="solid" size="lg" class="text-emerald-400"></box-icon>
           </div>
         </div>
       </div>
 
-      <div className="rounded-2xl bg-gradient-to-r from-blue-500 to-blue-700 p-6 text-white shadow-lg sm:p-8">
+      <div className="surface-hero rounded-2xl border p-6 text-white shadow-lg sm:p-8">
         <div className="flex items-center gap-3">
-          <box-icon name="badge-check" type="solid" size="lg" class="text-white"></box-icon>
+          <box-icon name="badge-check" type="solid" size="lg" class={theme === "dark" ? "text-white" : "text-emerald-700"}></box-icon>
           <div>
-            <h1 className="text-2xl font-bold sm:text-3xl">Bienvenue, Admin</h1>
+            <h1 className={`text-2xl font-bold sm:text-3xl ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
+              Bienvenue, {profileName || (user?.email ? user.email.split("@")[0] : "Admin")}
+            </h1>
+            <p className={`mt-1 text-sm ${theme === "dark" ? "text-slate-200" : "text-slate-700"}`}>{user?.email}</p>
           </div>
         </div>
       </div>
@@ -222,7 +254,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="h-2 rounded-full bg-slate-100">
                   <div
-                    className="h-2 rounded-full bg-blue-500"
+                    className="h-2 rounded-full bg-emerald-600"
                     style={{ width: `${Math.max(6, Math.round((item.value / monthlyMax) * 100))}%` }}
                   />
                 </div>
@@ -262,10 +294,10 @@ export default function AdminDashboard() {
                 <span className="text-slate-500">{item.value}</span>
               </div>
               <div className="h-2 rounded-full bg-slate-100">
-                <div
-                  className="h-2 rounded-full bg-purple-500"
-                  style={{ width: `${Math.max(6, Math.round((item.value / spiritualMax) * 100))}%` }}
-                />
+                  <div
+                    className="h-2 rounded-full bg-emerald-600"
+                    style={{ width: `${Math.max(6, Math.round((item.value / spiritualMax) * 100))}%` }}
+                  />
               </div>
             </div>
           ))}
@@ -279,11 +311,11 @@ export default function AdminDashboard() {
             <Link
               key={item.path}
               to={item.path}
-              className="rounded-xl border border-slate-200 p-4 transition hover:border-blue-500 hover:bg-blue-50"
+              className="rounded-xl border border-slate-200 p-4 transition hover:border-emerald-500 hover:bg-blue-50"
             >
               <div className="flex items-start gap-3">
                 <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-                  <box-icon name={item.icon} type="solid" color="#1d4ed8"></box-icon>
+                  <box-icon name={item.icon} type="solid" color="#2f6b47"></box-icon>
                 </div>
                 <div>
                   <p className="font-semibold text-slate-900">{item.title}</p>

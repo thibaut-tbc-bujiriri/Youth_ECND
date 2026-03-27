@@ -3,6 +3,8 @@ import { supabase } from "../../lib/supabase";
 import Loading from "../../components/Loading";
 import { printTableReport } from "../../lib/printUtils";
 import { queueEmailNotification } from "../../lib/emailNotifications";
+import { useConfirm } from "../../context/ConfirmContext";
+import "boxicons";
 
 const defaultForm = {
   title: "",
@@ -109,6 +111,7 @@ function buildDescriptionPayload(form) {
 }
 
 export default function AdminActivites() {
+  const { confirm } = useConfirm();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -250,7 +253,13 @@ export default function AdminActivites() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Supprimer cette activite ?")) return;
+    const approved = await confirm({
+      title: "Supprimer l'activite",
+      message: "Voulez-vous supprimer cette activite ?",
+      confirmText: "Supprimer",
+      tone: "danger",
+    });
+    if (!approved) return;
 
     try {
       const { error: deleteError } = await supabase.from("activities").delete().eq("id", id);
@@ -363,16 +372,18 @@ export default function AdminActivites() {
           <button
             onClick={handlePrintActivitiesReport}
             disabled={tableMissing}
-            className="rounded-xl bg-slate-700 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-xl px-2 py-2 text-slate-600 transition hover:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+            title="Imprimer rapport d'activites"
           >
-            Imprimer rapport d'activites
+            <box-icon name="printer" type="solid" color="currentColor"></box-icon>
           </button>
           <button
             onClick={openCreateModal}
             disabled={tableMissing}
-            className="rounded-xl bg-orange-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-xl px-2 py-2 text-emerald-600 transition hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+            title="Creer une activite"
           >
-            + Creer une activite
+            <box-icon name="plus-circle" type="solid" color="currentColor"></box-icon>
           </button>
         </div>
       </div>
@@ -460,15 +471,17 @@ export default function AdminActivites() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => openEditModal(activity)}
-                          className="rounded-lg bg-orange-600 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-700"
+                          className="rounded-lg px-1 py-1 text-emerald-600 hover:text-emerald-500"
+                          title="Modifier"
                         >
-                          Modifier
+                          <box-icon name="edit" type="solid" color="currentColor" size="sm"></box-icon>
                         </button>
                         <button
                           onClick={() => handleDelete(activity.id)}
-                          className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
+                          className="rounded-lg px-1 py-1 text-red-500 hover:text-red-400"
+                          title="Supprimer"
                         >
-                          Supprimer
+                          <box-icon name="trash" type="solid" color="currentColor" size="sm"></box-icon>
                         </button>
                       </div>
                     </div>
