@@ -171,16 +171,16 @@ export default function Landing() {
             </p>
           </div>
           <div className="text-left lg:text-right">
-            <p className="text-sm sm:text-base">(c) {new Date().getFullYear()} YOUTH ECND. Tous droits reserves.</p>
+            <p className="text-sm sm:text-base">© {new Date().getFullYear()} YOUTH ECND. Tous droits reserves.</p>
             <p className="mt-1 text-sm">
-              Developpe par Tbc-Groupe :{" "}
+              Développé par{" "}
               <a
                 href="https://tbc-groupe.vercel.app"
                 target="_blank"
                 rel="noreferrer"
-                className={`font-semibold underline ${isDark ? "text-emerald-300" : "text-emerald-700"}`}
+                className={`font-semibold ${isDark ? "text-emerald-300" : "text-emerald-700"}`}
               >
-                https://tbc-groupe.vercel.app
+                Tbc-Groupe
               </a>
             </p>
           </div>

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { getMemberContext, getMemberContributions } from "../../lib/memberData";
 import { queueEmailNotification } from "../../lib/emailNotifications";
+import { logAuditEvent } from "../../lib/audit";
 import Loading from "../../components/Loading";
 import { useConfirm } from "../../context/ConfirmContext";
 import "boxicons";
@@ -98,6 +99,11 @@ export default function MemberContributions() {
 
       const { error: insertError } = await supabase.from("contributions").insert([payload]);
       if (insertError) throw insertError;
+      await logAuditEvent({
+        action: "CREATE_CONTRIBUTION_MEMBER",
+        entity: "contributions",
+        details: { montant: amount, regul: form.regul },
+      });
       await queueEmailNotification({
         type: "contribution_submitted",
         subject: "Nouvelle contribution en attente",
@@ -136,6 +142,11 @@ export default function MemberContributions() {
         .in("status", ["en attente"]);
 
       if (deleteError) throw deleteError;
+      await logAuditEvent({
+        action: "DELETE_CONTRIBUTION_MEMBER",
+        entity: "contributions",
+        entity_id: id,
+      });
       setContributions((current) => current.filter((item) => item.id !== id));
       setSuccess("Contribution en attente supprimee.");
       setTimeout(() => setSuccess(""), 2500);

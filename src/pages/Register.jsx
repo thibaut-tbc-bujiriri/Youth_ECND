@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { logAuditEvent } from "../lib/audit";
 import { useSystemSettings } from "../context/SystemSettingsContext";
+import { useTheme } from "../context/ThemeContext";
 import { queueEmailNotification } from "../lib/emailNotifications";
 import "boxicons";
 
@@ -16,6 +17,8 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { settings } = useSystemSettings();
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -167,10 +170,31 @@ export default function Register() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-blue-800 text-white flex items-center justify-center p-6">
-      <section className="w-full max-w-md bg-white/10 backdrop-blur-md border border-white/10 rounded-xl p-8 shadow-xl">
+    <main
+      className={`min-h-screen flex items-center justify-center p-6 ${
+        isDark
+          ? "bg-gradient-to-br from-slate-900 via-indigo-900 to-blue-800 text-white"
+          : "bg-gradient-to-br from-sky-100 via-blue-50 to-slate-100 text-slate-900"
+      }`}
+    >
+      <section
+        className={`w-full max-w-md rounded-xl p-8 shadow-xl ${
+          isDark ? "bg-white/10 backdrop-blur-md border border-white/10" : "bg-white border border-slate-200"
+        }`}
+      >
+        <div className="mb-4 flex justify-end">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className={`p-1.5 transition ${isDark ? "text-slate-100 hover:text-amber-300" : "text-slate-500 hover:text-emerald-700"}`}
+            aria-label="Changer le theme"
+            title="Changer le theme"
+          >
+            <box-icon name={isDark ? "sun" : "moon"} color={isDark ? "#ffffff" : "#0f172a"} size="sm"></box-icon>
+          </button>
+        </div>
         <h1 className="text-3xl mb-4 font-bold">Creer un compte</h1>
-        <p className="text-sm text-slate-200 mb-6">Rejoins YOUTH ECND pour gerer la jeunesse de ton eglise.</p>
+        <p className={`text-sm mb-6 ${isDark ? "text-slate-200" : "text-slate-600"}`}>Rejoins YOUTH ECND pour gerer la jeunesse de ton eglise.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -183,7 +207,9 @@ export default function Register() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={loading}
-              className="w-full p-3 rounded-lg bg-white/90 text-slate-900 placeholder-slate-500 disabled:opacity-50"
+              className={`w-full p-3 rounded-lg text-slate-900 placeholder-slate-500 disabled:opacity-50 ${
+                isDark ? "bg-white/90" : "bg-slate-100"
+              }`}
               placeholder="Thibaut Tbc Bujiriri"
             />
           </div>
@@ -198,7 +224,9 @@ export default function Register() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              className="w-full p-3 rounded-lg bg-white/90 text-slate-900 placeholder-slate-500 disabled:opacity-50"
+              className={`w-full p-3 rounded-lg text-slate-900 placeholder-slate-500 disabled:opacity-50 ${
+                isDark ? "bg-white/90" : "bg-slate-100"
+              }`}
               placeholder="thibauttbcbujiriri@gmail.com"
             />
           </div>
@@ -213,7 +241,9 @@ export default function Register() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              className="w-full p-3 rounded-lg bg-white/90 text-slate-900 placeholder-slate-500 disabled:opacity-50"
+              className={`w-full p-3 rounded-lg text-slate-900 placeholder-slate-500 disabled:opacity-50 ${
+                isDark ? "bg-white/90" : "bg-slate-100"
+              }`}
               placeholder="********"
             />
           </div>
@@ -228,7 +258,9 @@ export default function Register() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={loading}
-              className="w-full p-3 rounded-lg bg-white/90 text-slate-900 placeholder-slate-500 disabled:opacity-50"
+              className={`w-full p-3 rounded-lg text-slate-900 placeholder-slate-500 disabled:opacity-50 ${
+                isDark ? "bg-white/90" : "bg-slate-100"
+              }`}
               placeholder="********"
             />
           </div>
@@ -253,7 +285,7 @@ export default function Register() {
           <button
             type="submit"
             disabled={loading || !settings.registrations_open}
-            className="w-full py-3 rounded-lg bg-cyan-500 hover:bg-cyan-400 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="w-full py-3 rounded-lg bg-blue-500 hover:bg-blue-400 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             <span className="inline-flex items-center gap-2">
               <box-icon name="user-plus" type="solid" color="#ffffff" size="xs"></box-icon>
@@ -262,8 +294,11 @@ export default function Register() {
           </button>
         </form>
 
-        <p className="mt-6 text-sm text-slate-200 text-center">
-          Deja inscrit ? <Link className="text-sky-200 hover:text-sky-100 font-semibold" to="/login">Se connecter</Link>
+        <p className={`mt-6 text-sm text-center ${isDark ? "text-slate-200" : "text-slate-600"}`}>
+          Deja inscrit ?{" "}
+          <Link className={`font-semibold ${isDark ? "text-cyan-200 hover:text-cyan-100" : "text-emerald-700 hover:text-emerald-800"}`} to="/login">
+            Se connecter
+          </Link>
         </p>
       </section>
     </main>

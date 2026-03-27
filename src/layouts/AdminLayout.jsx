@@ -212,11 +212,13 @@ const AdminLayout = ({ children }) => {
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 px-3 py-3 backdrop-blur sm:px-6 sm:py-4">
           <div className="flex items-center gap-3">
             <button
-              className="rounded-lg border border-slate-300 p-2 lg:hidden"
+              className={`rounded-lg border p-2 lg:hidden ${
+                theme === "dark" ? "border-slate-500 bg-slate-800 text-slate-100" : "border-slate-300 bg-white text-slate-800"
+              }`}
               onClick={() => setMobileMenuOpen((prev) => !prev)}
               aria-label="Ouvrir le menu"
             >
-              <box-icon name="menu" color={theme === "dark" ? "#e8f2ff" : "#0f172a"} size="sm"></box-icon>
+              <box-icon name="menu" color={theme === "dark" ? "#ffffff" : "#0f172a"} size="sm"></box-icon>
             </button>
             <h2 className="text-base font-bold text-slate-800 sm:text-2xl">Admin Dashboard</h2>
           </div>

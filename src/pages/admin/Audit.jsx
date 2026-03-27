@@ -207,18 +207,20 @@ export default function AdminAudit() {
           <button
             onClick={loadAuditLogs}
             disabled={tableMissing}
-            className="w-full rounded-xl px-2 py-2 text-emerald-600 transition hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             title="Rafraichir"
           >
-            <box-icon name="refresh" type="solid" color="currentColor"></box-icon>
+            <box-icon name="refresh" type="solid" color="currentColor" size="sm"></box-icon>
+            Rafraichir
           </button>
           <button
             onClick={handlePrintAudit}
             disabled={tableMissing}
-            className="w-full rounded-xl px-2 py-2 text-slate-600 transition hover:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             title="Imprimer le journal"
           >
-            <box-icon name="printer" type="solid" color="currentColor"></box-icon>
+            <box-icon name="printer" type="solid" color="currentColor" size="sm"></box-icon>
+            Imprimer
           </button>
         </div>
       </div>

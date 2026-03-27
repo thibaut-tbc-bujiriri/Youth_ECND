@@ -204,63 +204,106 @@ export default function MemberCV() {
         {rows.length === 0 ? (
           <div className="px-5 py-10 text-center text-slate-500">Aucun CV enregistre.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1060px]">
-              <thead className="bg-slate-100 text-left text-sm text-slate-600">
-                <tr>
-                  <th className="px-5 py-4 font-semibold">Nom du fichier</th>
-                  <th className="px-5 py-4 font-semibold">Date</th>
-                  <th className="px-5 py-4 font-semibold">Format</th>
-                  <th className="px-5 py-4 font-semibold">Taille</th>
-                  <th className="px-5 py-4 font-semibold">Statut</th>
-                  <th className="px-5 py-4 font-semibold">Commentaire admin</th>
-                  <th className="px-5 py-4 text-right font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((item) => (
-                  <tr key={item.id} className="border-t border-slate-100 text-sm text-slate-700">
-                    <td className="px-5 py-4 font-medium text-slate-900">{item.file_name || "-"}</td>
-                    <td className="px-5 py-4">
-                      {item.created_at ? new Date(item.created_at).toLocaleDateString("fr-FR") : "-"}
-                    </td>
-                    <td className="px-5 py-4">{item.mime_type || "-"}</td>
-                    <td className="px-5 py-4">{item.size_bytes ? `${Math.round(item.size_bytes / 1024)} Ko` : "-"}</td>
-                    <td className="px-5 py-4">{item.status || "soumis"}</td>
-                    <td className="px-5 py-4">
-                      {item.commentaire ? (
-                        <p className="max-w-[320px] break-words rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                          {item.commentaire}
-                        </p>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <a
-                          href={item.file_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded-lg px-1 py-1 text-slate-600 hover:text-slate-400"
-                          title="Ouvrir"
-                        >
-                          <box-icon name="file-find" type="solid" color="currentColor" size="sm"></box-icon>
-                        </a>
-                        <button
-                          onClick={() => deleteCv(item.id)}
-                          className="rounded-lg px-1 py-1 text-red-500 hover:text-red-400"
-                          title="Supprimer"
-                        >
-                          <box-icon name="trash" type="solid" color="currentColor" size="sm"></box-icon>
-                        </button>
-                      </div>
-                    </td>
+          <>
+            <div className="grid gap-3 p-3 md:hidden">
+              {rows.map((item) => (
+                <article key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="break-all text-sm font-semibold text-slate-900">{item.file_name || "-"}</p>
+                  <div className="mt-2 space-y-1 text-xs text-slate-700">
+                    <p><span className="font-medium">Date:</span> {item.created_at ? new Date(item.created_at).toLocaleDateString("fr-FR") : "-"}</p>
+                    <p><span className="font-medium">Format:</span> {item.mime_type || "-"}</p>
+                    <p><span className="font-medium">Taille:</span> {item.size_bytes ? `${Math.round(item.size_bytes / 1024)} Ko` : "-"}</p>
+                    <p><span className="font-medium">Statut:</span> {item.status || "soumis"}</p>
+                  </div>
+                  <div className="mt-2">
+                    {item.commentaire ? (
+                      <p className="break-words rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                        {item.commentaire}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-slate-500">Aucun commentaire admin.</p>
+                    )}
+                  </div>
+                  <div className="mt-3 flex items-center gap-3">
+                    <a
+                      href={item.file_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="p-1 text-slate-600 hover:text-slate-400"
+                      title="Ouvrir"
+                    >
+                      <box-icon name="file-find" type="solid" color="currentColor" size="sm"></box-icon>
+                    </a>
+                    <button
+                      onClick={() => deleteCv(item.id)}
+                      className="p-1 text-red-500 hover:text-red-400"
+                      title="Supprimer"
+                    >
+                      <box-icon name="trash" type="solid" color="currentColor" size="sm"></box-icon>
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[980px]">
+                <thead className="bg-slate-100 text-left text-sm text-slate-600">
+                  <tr>
+                    <th className="px-5 py-4 font-semibold">Nom du fichier</th>
+                    <th className="px-5 py-4 font-semibold">Date</th>
+                    <th className="px-5 py-4 font-semibold">Format</th>
+                    <th className="px-5 py-4 font-semibold">Taille</th>
+                    <th className="px-5 py-4 font-semibold">Statut</th>
+                    <th className="px-5 py-4 font-semibold">Commentaire admin</th>
+                    <th className="px-5 py-4 text-right font-semibold">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {rows.map((item) => (
+                    <tr key={item.id} className="border-t border-slate-100 text-sm text-slate-700">
+                      <td className="px-5 py-4 max-w-[240px] break-all font-medium text-slate-900">{item.file_name || "-"}</td>
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        {item.created_at ? new Date(item.created_at).toLocaleDateString("fr-FR") : "-"}
+                      </td>
+                      <td className="px-5 py-4">{item.mime_type || "-"}</td>
+                      <td className="px-5 py-4">{item.size_bytes ? `${Math.round(item.size_bytes / 1024)} Ko` : "-"}</td>
+                      <td className="px-5 py-4">{item.status || "soumis"}</td>
+                      <td className="px-5 py-4 max-w-[320px] break-words">
+                        {item.commentaire ? (
+                          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                            {item.commentaire}
+                          </p>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <a
+                            href={item.file_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1 text-slate-600 hover:text-slate-400"
+                            title="Ouvrir"
+                          >
+                            <box-icon name="file-find" type="solid" color="currentColor" size="sm"></box-icon>
+                          </a>
+                          <button
+                            onClick={() => deleteCv(item.id)}
+                            className="p-1 text-red-500 hover:text-red-400"
+                            title="Supprimer"
+                          >
+                            <box-icon name="trash" type="solid" color="currentColor" size="sm"></box-icon>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

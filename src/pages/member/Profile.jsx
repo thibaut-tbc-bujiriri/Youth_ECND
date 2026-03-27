@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { getMemberContext, getMemberContributions, saveMemberJeune } from "../../lib/memberData";
+import { logAuditEvent } from "../../lib/audit";
 import Loading from "../../components/Loading";
 import "boxicons";
 
@@ -132,6 +133,11 @@ export default function MemberProfile() {
           .single();
 
         if (updateError) throw updateError;
+        await logAuditEvent({
+          action: "UPDATE_MEMBER_PROFILE_PHOTO",
+          entity: "jeunes",
+          entity_id: jeune.id,
+        });
         setJeune(updatedJeune);
         setSuccess("Photo de profil mise a jour.");
       } else {
@@ -182,6 +188,12 @@ export default function MemberProfile() {
       };
 
       const savedJeune = await saveMemberJeune(publicUser.id, payload, jeune?.id || null);
+      await logAuditEvent({
+        action: jeune?.id ? "UPDATE_MEMBER_PROFILE" : "CREATE_MEMBER_PROFILE",
+        entity: "jeunes",
+        entity_id: savedJeune?.id,
+        details: { nom: payload.nom, prenom: payload.prenom },
+      });
       setJeune(savedJeune);
       setForm((current) => ({ ...current, id: savedJeune.id, photo_url: savedJeune.photo_url || current.photo_url }));
       setEditing(false);

@@ -70,23 +70,34 @@ export async function logAuditEvent({
   action,
   entity = null,
   entity_id = null,
+  entityId = null,
   details = null,
   success = true,
 }) {
   if (!action) return;
-  const normalizedAction = String(action).toUpperCase();
-  const allowedActions = new Set(["CREATE", "INSERT", "UPDATE", "DELETE"]);
-  if (!allowedActions.has(normalizedAction)) return;
+  const rawAction = String(action).toUpperCase();
+  const actionMap = [
+    { keys: ["DELETE", "REMOVE", "SUPPR"], value: "DELETE" },
+    { keys: ["UPDATE", "EDIT", "MODIF"], value: "UPDATE" },
+    { keys: ["CREATE", "INSERT", "ADD", "AJOUT", "UPLOAD"], value: "INSERT" },
+  ];
+  const normalizedAction =
+    actionMap.find((item) => item.keys.some((key) => rawAction.includes(key)))?.value || null;
+  if (!normalizedAction) return;
 
   try {
     const actor = await getCurrentActor();
+    const resolvedEntityId = entity_id ?? entityId ?? null;
     const payload = {
       ...actor,
-      action,
+      action: normalizedAction,
       entity,
-      entity_id: entity_id ? String(entity_id) : null,
+      entity_id: resolvedEntityId ? String(resolvedEntityId) : null,
       path: typeof window !== "undefined" ? window.location.pathname : null,
-      details: details || {},
+      details: {
+        original_action: rawAction,
+        ...(details || {}),
+      },
       success: Boolean(success),
       user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
     };

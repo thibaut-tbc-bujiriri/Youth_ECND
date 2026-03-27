@@ -4,6 +4,7 @@ import Loading from "../../components/Loading";
 import { printTableReport } from "../../lib/printUtils";
 import { queueEmailNotification } from "../../lib/emailNotifications";
 import { useConfirm } from "../../context/ConfirmContext";
+import { logAuditEvent } from "../../lib/audit";
 import "boxicons";
 
 const defaultForm = {
@@ -222,6 +223,12 @@ export default function AdminActivites() {
           .update(payload)
           .eq("id", editingActivity.id);
         if (updateError) throw updateError;
+        await logAuditEvent({
+          action: "UPDATE_ACTIVITY",
+          entity: "activities",
+          entity_id: editingActivity.id,
+          details: { title: form.title, status: form.status },
+        });
         setSuccess("Activite mise a jour.");
         await queueEmailNotification({
           type: "activity_updated",
@@ -232,6 +239,11 @@ export default function AdminActivites() {
       } else {
         const { error: insertError } = await supabase.from("activities").insert([payload]);
         if (insertError) throw insertError;
+        await logAuditEvent({
+          action: "CREATE_ACTIVITY",
+          entity: "activities",
+          details: { title: form.title, status: form.status },
+        });
         setSuccess("Activite creee.");
         await queueEmailNotification({
           type: "activity_created",
@@ -264,6 +276,11 @@ export default function AdminActivites() {
     try {
       const { error: deleteError } = await supabase.from("activities").delete().eq("id", id);
       if (deleteError) throw deleteError;
+      await logAuditEvent({
+        action: "DELETE_ACTIVITY",
+        entity: "activities",
+        entity_id: id,
+      });
       setActivities((current) => current.filter((item) => item.id !== id));
       setSuccess("Activite supprimee.");
       setTimeout(() => setSuccess(""), 2500);
@@ -372,18 +389,20 @@ export default function AdminActivites() {
           <button
             onClick={handlePrintActivitiesReport}
             disabled={tableMissing}
-            className="rounded-xl px-2 py-2 text-slate-600 transition hover:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             title="Imprimer rapport d'activites"
           >
-            <box-icon name="printer" type="solid" color="currentColor"></box-icon>
+            <box-icon name="printer" type="solid" color="currentColor" size="sm"></box-icon>
+            Imprimer
           </button>
           <button
             onClick={openCreateModal}
             disabled={tableMissing}
-            className="rounded-xl px-2 py-2 text-emerald-600 transition hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
             title="Creer une activite"
           >
-            <box-icon name="plus-circle" type="solid" color="currentColor"></box-icon>
+            <box-icon name="plus-circle" type="solid" color="currentColor" size="sm"></box-icon>
+            Ajouter
           </button>
         </div>
       </div>

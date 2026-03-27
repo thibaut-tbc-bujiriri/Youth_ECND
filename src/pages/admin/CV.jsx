@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import Loading from "../../components/Loading";
+import { logAuditEvent } from "../../lib/audit";
 import "boxicons";
 
 function fullName(jeune) {
@@ -108,6 +109,11 @@ export default function AdminCV() {
         .update({ commentaire, status: commentaire ? "valide" : "soumis" })
         .eq("id", cvId);
       if (updateError) throw updateError;
+      await logAuditEvent({
+        action: "UPDATE_CV_COMMENT",
+        entity: "cv",
+        entity_id: cvId,
+      });
       setRows((current) =>
         current.map((item) =>
           item.id === cvId ? { ...item, commentaire, status: commentaire ? "valide" : item.status } : item,
@@ -132,10 +138,11 @@ export default function AdminCV() {
         </div>
         <button
           onClick={loadCv}
-          className="w-full rounded-xl px-2 py-2 text-slate-600 transition hover:text-slate-400 sm:w-auto"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
           title="Rafraichir"
         >
-          <box-icon name="refresh" type="solid" color="currentColor"></box-icon>
+          <box-icon name="refresh" type="solid" color="currentColor" size="sm"></box-icon>
+          Rafraichir
         </button>
       </div>
 

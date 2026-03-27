@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase";
 import Loading from "../../components/Loading";
 import { printTableReport } from "../../lib/printUtils";
 import { useConfirm } from "../../context/ConfirmContext";
+import { logAuditEvent } from "../../lib/audit";
 import "boxicons";
 
 function roleFromUserRow(userRow) {
@@ -114,6 +115,12 @@ export default function AdminUtilisateurs() {
         .eq("id", editingUser.id);
 
       if (updateError) throw updateError;
+      await logAuditEvent({
+        action: "UPDATE_USER",
+        entity: "users",
+        entity_id: editingUser.id,
+        details: { email: formData.email },
+      });
 
       if (formData.role !== editingUser.role) {
         await handleRoleChange(editingUser.id, formData.role, false);
@@ -157,6 +164,11 @@ export default function AdminUtilisateurs() {
         .eq("id", userId);
 
       if (deleteUserError) throw deleteUserError;
+      await logAuditEvent({
+        action: "DELETE_USER",
+        entity: "users",
+        entity_id: userId,
+      });
 
       setUsers((prev) => prev.filter((u) => u.id !== userId));
       setSuccess("Utilisateur supprimé avec succès.");
@@ -184,6 +196,12 @@ export default function AdminUtilisateurs() {
         .insert([{ user_id: userId, role_id: roleId }]);
 
       if (mapError) throw mapError;
+      await logAuditEvent({
+        action: "UPDATE_USER_ROLE",
+        entity: "user_roles",
+        entity_id: userId,
+        details: { role: newRole },
+      });
 
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
 
@@ -246,19 +264,21 @@ export default function AdminUtilisateurs() {
           </div>
           <button
             onClick={openAddModal}
-            className="w-full sm:w-auto px-2 py-2 text-emerald-600 transition hover:text-emerald-500"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 sm:w-auto"
             title="Creer via inscription"
           >
-            <box-icon name="user-plus" type="solid" color="currentColor"></box-icon>
+            <box-icon name="user-plus" type="solid" color="currentColor" size="sm"></box-icon>
+            Ajouter
           </button>
         </div>
         <div className="mb-6">
           <button
             onClick={handlePrintUsers}
-            className="w-full sm:w-auto px-2 py-2 text-slate-600 transition hover:text-slate-400"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
             title="Imprimer la liste des utilisateurs"
           >
-            <box-icon name="printer" type="solid" color="currentColor"></box-icon>
+            <box-icon name="printer" type="solid" color="currentColor" size="sm"></box-icon>
+            Imprimer
           </button>
         </div>
 

@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase";
 import Loading from "../../components/Loading";
 import { printTableReport } from "../../lib/printUtils";
 import { useConfirm } from "../../context/ConfirmContext";
+import { logAuditEvent } from "../../lib/audit";
 
 const defaultForm = {
   nom: "",
@@ -182,10 +183,21 @@ export default function AdminJeunes() {
           .update(payload)
           .eq("id", editingJeune.id);
         if (updateError) throw updateError;
+        await logAuditEvent({
+          action: "UPDATE_JEUNE",
+          entity: "jeunes",
+          entity_id: editingJeune.id,
+          details: { nom: payload.nom, prenom: payload.prenom },
+        });
         setSuccess("Fiche jeune mise à jour.");
       } else {
         const { error: insertError } = await supabase.from("jeunes").insert([payload]);
         if (insertError) throw insertError;
+        await logAuditEvent({
+          action: "CREATE_JEUNE",
+          entity: "jeunes",
+          details: { nom: payload.nom, prenom: payload.prenom },
+        });
         setSuccess("Jeune ajouté avec succès.");
       }
 
@@ -213,6 +225,11 @@ export default function AdminJeunes() {
       setError("");
       const { error: deleteError } = await supabase.from("jeunes").delete().eq("id", id);
       if (deleteError) throw deleteError;
+      await logAuditEvent({
+        action: "DELETE_JEUNE",
+        entity: "jeunes",
+        entity_id: id,
+      });
       setJeunes((current) => current.filter((item) => item.id !== id));
       setSuccess("Jeune supprimé.");
       setTimeout(() => setSuccess(""), 2500);
@@ -386,17 +403,19 @@ export default function AdminJeunes() {
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <button
             onClick={handlePrintJeunes}
-            className="w-full rounded-xl px-2 py-2 text-slate-600 transition hover:text-slate-400 sm:w-auto"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
             title="Imprimer la liste"
           >
-            <box-icon name="printer" type="solid" color="currentColor"></box-icon>
+            <box-icon name="printer" type="solid" color="currentColor" size="sm"></box-icon>
+            Imprimer
           </button>
           <button
             onClick={openCreateModal}
-            className="w-full rounded-xl px-2 py-2 text-emerald-600 transition hover:text-emerald-500 sm:w-auto"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 sm:w-auto"
             title="Ajouter un jeune"
           >
-            <box-icon name="user-plus" type="solid" color="currentColor"></box-icon>
+            <box-icon name="user-plus" type="solid" color="currentColor" size="sm"></box-icon>
+            Ajouter
           </button>
         </div>
       </div>
