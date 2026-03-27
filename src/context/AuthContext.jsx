@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { supabase } from "../lib/supabase";
 
 const AuthContext = createContext(null);
-const SESSION_TIMEOUT_MS = 5000;
+const SESSION_TIMEOUT_MS = 12000;
 const ROLE_TIMEOUT_MS = 7000;
 
 function withTimeout(promise, ms, label) {
@@ -96,13 +96,24 @@ export function AuthProvider({ children }) {
 
           let sessionUser = sessionUserFromEvent;
           if (sessionUser === undefined) {
-            const { data, error: sessionError } = await withTimeout(
-              supabase.auth.getSession(),
-              SESSION_TIMEOUT_MS,
-              "auth_getSession",
-            );
-            if (sessionError) throw sessionError;
-            sessionUser = data?.session?.user ?? null;
+            try {
+              const { data, error: sessionError } = await withTimeout(
+                supabase.auth.getSession(),
+                SESSION_TIMEOUT_MS,
+                "auth_getSession",
+              );
+              if (sessionError) throw sessionError;
+              sessionUser = data?.session?.user ?? null;
+            } catch (sessionErr) {
+              console.warn("[AUTH] getSession fallback getUser:", sessionErr?.message || sessionErr);
+              const { data: userData, error: userError } = await withTimeout(
+                supabase.auth.getUser(),
+                SESSION_TIMEOUT_MS,
+                "auth_getUser",
+              );
+              if (userError) throw userError;
+              sessionUser = userData?.user ?? null;
+            }
           }
 
           if (!sessionUser) {

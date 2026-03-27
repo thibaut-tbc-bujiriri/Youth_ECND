@@ -83,11 +83,12 @@ function MaintenanceGate({ children, allowDuringMaintenance = false }) {
 }
 
 function RoleGate({ allow, children }) {
-  const { loading, role } = useAuth();
+  const { loading, role, user } = useAuth();
   const localRole = localStorage.getItem("role");
   const currentRole = role || localRole;
 
   if (loading) return <Loading message="Chargement du profil..." />;
+  if (!user) return <Navigate to="/login" replace />;
   if (!allow.includes(currentRole)) return <Navigate to="/login" replace />;
   return children;
 }
