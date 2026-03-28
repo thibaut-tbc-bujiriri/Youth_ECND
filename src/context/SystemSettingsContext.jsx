@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 const SystemSettingsContext = createContext(null);
+const SETTINGS_REQUEST_TIMEOUT_MS = 6000;
+const SETTINGS_CACHE_KEY = "system_settings_cache_v1";
 
 const defaultSettings = {
   organization_name: "YOUTH ECND",
@@ -12,50 +14,94 @@ const defaultSettings = {
   session_duration_minutes: 120,
 };
 
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timeout (${ms}ms)`)), ms)),
+  ]);
+}
+
+function readSettingsCache() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return {
+      organization_name: parsed.organization_name || defaultSettings.organization_name,
+      contact_email: parsed.contact_email || "",
+      maintenance_mode: Boolean(parsed.maintenance_mode),
+      registrations_open: Boolean(parsed.registrations_open),
+      email_notifications: Boolean(parsed.email_notifications),
+      session_duration_minutes: Number(parsed.session_duration_minutes || 120),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeSettingsCache(settings) {
+  try {
+    localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(settings));
+  } catch {
+    // Ignore cache write issues (quota/private mode).
+  }
+}
+
 function isMissingRelationError(error) {
   return error?.message?.toLowerCase().includes("app_settings") || error?.code === "42P01";
 }
 
 export function SystemSettingsProvider({ children }) {
-  const [settings, setSettings] = useState(defaultSettings);
-  const [loading, setLoading] = useState(true);
+  const cached = readSettingsCache();
+  const [settings, setSettings] = useState(cached || defaultSettings);
+  const [loading, setLoading] = useState(!cached);
 
   async function reloadSettings(options = {}) {
     const { silent = false } = options;
     try {
       if (!silent) setLoading(true);
-      const { data, error } = await supabase
-        .from("app_settings")
-        .select("*")
-        .eq("slug", "main")
-        .maybeSingle();
+      const { data, error } = await withTimeout(
+        supabase
+          .from("app_settings")
+          .select("*")
+          .eq("slug", "main")
+          .maybeSingle(),
+        SETTINGS_REQUEST_TIMEOUT_MS,
+        "system_settings_query",
+      );
 
       if (error) throw error;
 
       if (data) {
-        setSettings({
+        const resolvedSettings = {
           organization_name: data.organization_name || defaultSettings.organization_name,
           contact_email: data.contact_email || "",
           maintenance_mode: Boolean(data.maintenance_mode),
           registrations_open: Boolean(data.registrations_open),
           email_notifications: Boolean(data.email_notifications),
           session_duration_minutes: Number(data.session_duration_minutes || 120),
-        });
+        };
+        setSettings(resolvedSettings);
+        writeSettingsCache(resolvedSettings);
       } else {
         setSettings(defaultSettings);
+        writeSettingsCache(defaultSettings);
       }
     } catch (err) {
-      if (!isMissingRelationError(err)) {
+      if (!isMissingRelationError(err) && !String(err?.message || "").includes("system_settings_query timeout")) {
         console.error("[SYSTEM_SETTINGS] reload:", err);
       }
-      setSettings(defaultSettings);
+      if (!cached) {
+        setSettings(defaultSettings);
+      }
     } finally {
       if (!silent) setLoading(false);
     }
   }
 
   useEffect(() => {
-    reloadSettings();
+    reloadSettings({ silent: Boolean(cached) });
     const interval = window.setInterval(() => {
       reloadSettings({ silent: true });
     }, 30000);

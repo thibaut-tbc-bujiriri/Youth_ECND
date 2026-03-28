@@ -6,6 +6,27 @@ const ACTOR_CACHE_MS = 60 * 1000;
 let cachedClientMeta = null;
 let clientMetaCacheUntil = 0;
 const CLIENT_META_CACHE_MS = 5 * 60 * 1000;
+const AUTH_RETRY_DELAY_MS = 250;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function resolveAuthUserWithRetry() {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    if (authUser?.id) return authUser;
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const sessionUser = sessionData?.session?.user ?? null;
+    if (sessionUser?.id) return sessionUser;
+
+    if (attempt < 2) await sleep(AUTH_RETRY_DELAY_MS);
+  }
+  return null;
+}
 
 function resolveRoleFromUserRow(userRow) {
   const roles = Array.isArray(userRow?.user_roles) ? userRow.user_roles : [];
@@ -88,9 +109,7 @@ async function getCurrentActor() {
   const now = Date.now();
   if (cachedActor && now < cacheUntil) return cachedActor;
 
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const authUser = await resolveAuthUserWithRetry();
 
   if (!authUser?.id) {
     cachedActor = {
@@ -103,23 +122,29 @@ async function getCurrentActor() {
     return cachedActor;
   }
 
-  const { data: userRow } = await supabase
-    .from("users")
-    .select(`
-      id,
-      email,
-      user_roles (
-        roles ( name )
-      )
-    `)
-    .eq("auth_id", authUser.id)
-    .maybeSingle();
+  let userRow = null;
+  try {
+    const { data } = await supabase
+      .from("users")
+      .select(`
+        id,
+        email,
+        user_roles (
+          roles ( name )
+        )
+      `)
+      .eq("auth_id", authUser.id)
+      .maybeSingle();
+    userRow = data || null;
+  } catch {
+    userRow = null;
+  }
 
   cachedActor = {
     actor_auth_id: authUser.id,
     actor_user_id: userRow?.id || null,
     actor_email: userRow?.email || authUser.email || null,
-    actor_role: resolveRoleFromUserRow(userRow),
+    actor_role: userRow ? resolveRoleFromUserRow(userRow) : "unknown",
   };
   cacheUntil = now + ACTOR_CACHE_MS;
   return cachedActor;
@@ -140,17 +165,26 @@ export async function logAuditEvent({
 }) {
   if (!action) return;
   const rawAction = String(action).toUpperCase();
-  const actionMap = [
-    { keys: ["DELETE", "REMOVE", "SUPPR"], value: "DELETE" },
-    { keys: ["UPDATE", "EDIT", "MODIF"], value: "UPDATE" },
-    { keys: ["CREATE", "INSERT", "ADD", "AJOUT", "UPLOAD"], value: "INSERT" },
-  ];
-  const normalizedAction =
-    actionMap.find((item) => item.keys.some((key) => rawAction.includes(key)))?.value || null;
+  let normalizedAction = null;
+  if (rawAction.includes("LOGIN") || rawAction.includes("CONNECT")) normalizedAction = "LOGIN";
+  else if (rawAction.includes("LOGOUT") || rawAction.includes("DISCONNECT") || rawAction.includes("DECONN")) normalizedAction = "LOGOUT";
+  else if (rawAction.includes("DELETE") || rawAction.includes("REMOVE") || rawAction.includes("SUPPR")) normalizedAction = "DELETE";
+  else if (rawAction.includes("UPDATE") || rawAction.includes("EDIT") || rawAction.includes("MODIF")) normalizedAction = "UPDATE";
+  else if (
+    rawAction.includes("CREATE") ||
+    rawAction.includes("INSERT") ||
+    rawAction.includes("ADD") ||
+    rawAction.includes("AJOUT") ||
+    rawAction.includes("UPLOAD")
+  ) normalizedAction = "INSERT";
   if (!normalizedAction) return;
 
   try {
     const actor = await getCurrentActor();
+    if (!actor.actor_auth_id) {
+      console.warn("[AUDIT] skipped: no authenticated actor resolved");
+      return;
+    }
     const clientMeta = await getClientMeta();
     const resolvedEntityId = entity_id ?? entityId ?? null;
     const payload = {

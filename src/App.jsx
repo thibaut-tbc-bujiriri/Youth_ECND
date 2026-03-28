@@ -64,8 +64,7 @@ function SessionTimeoutGuard() {
 function MaintenanceGate({ children, allowDuringMaintenance = false }) {
   const { role, logout } = useAuth();
   const { settings, loading } = useSystemSettings();
-  const localRole = localStorage.getItem("role");
-  const currentRole = role || localRole;
+  const currentRole = role;
 
   useEffect(() => {
     if (!settings.maintenance_mode) return;
@@ -84,20 +83,19 @@ function MaintenanceGate({ children, allowDuringMaintenance = false }) {
 
 function RoleGate({ allow, children }) {
   const { loading, role, user } = useAuth();
-  const localRole = localStorage.getItem("role");
-  const currentRole = role || localRole;
+  const currentRole = role;
 
   if (loading) return <Loading message="Chargement du profil..." />;
   if (!user) return <Navigate to="/login" replace />;
-  if (!allow.includes(currentRole)) return <Navigate to="/login" replace />;
+  if (!currentRole) return <Loading message="Recuperation du role..." />;
+  if (!allow.includes(currentRole)) return <Navigate to="/dashboard" replace />;
   return children;
 }
 
 function AppRoutes() {
   const { loading, role } = useAuth();
   const { settings, loading: settingsLoading } = useSystemSettings();
-  const localRole = localStorage.getItem("role");
-  const currentRole = role || localRole;
+  const currentRole = role;
 
   if (settingsLoading) {
     return <Loading message="Chargement des parametres..." />;
@@ -140,6 +138,8 @@ function AppRoutes() {
         element={
           loading ? (
             <Loading message="Chargement du profil..." />
+          ) : !currentRole ? (
+            <Loading message="Recuperation du role..." />
           ) : settings.maintenance_mode && currentRole !== "admin" ? (
             <Navigate to="/maintenance" replace />
           ) : (

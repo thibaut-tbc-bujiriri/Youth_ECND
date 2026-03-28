@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import Loading from "../../components/Loading";
 import "boxicons";
 
-const TRACKED_ACTIONS = ["CREATE", "INSERT", "UPDATE", "DELETE"];
+const TRACKED_ACTIONS = ["CREATE", "INSERT", "UPDATE", "DELETE", "LOGIN", "LOGOUT"];
 
 function isMissingRelationError(error) {
   return error?.message?.toLowerCase().includes("audit_logs") || error?.code === "42P01";
@@ -15,18 +15,25 @@ function isTrackedAction(action) {
 
 function actionToText(action, success) {
   const key = String(action || "").toUpperCase();
-  if (success === false) return "Action echouee";
-  if (key === "CREATE" || key === "INSERT") return "Connexion";
+  if (success === false) {
+    if (key === "LOGIN") return "Connexion echouee";
+    return "Action echouee";
+  }
+  if (key === "LOGIN") return "Connexion";
+  if (key === "LOGOUT") return "Deconnexion";
+  if (key === "CREATE" || key === "INSERT") return "Ajout";
   if (key === "UPDATE") return "Mise a jour";
-  if (key === "DELETE") return "Deconnexion";
+  if (key === "DELETE") return "Suppression";
   return "Action";
 }
 
 function actionBadgeClass(action, success) {
   if (success === false) return "bg-red-100 text-red-700";
   const key = String(action || "").toUpperCase();
-  if (key === "CREATE" || key === "INSERT") return "bg-emerald-100 text-emerald-700";
-  if (key === "DELETE") return "bg-slate-200 text-slate-700";
+  if (key === "LOGIN") return "bg-emerald-100 text-emerald-700";
+  if (key === "LOGOUT") return "bg-slate-200 text-slate-700";
+  if (key === "CREATE" || key === "INSERT") return "bg-blue-100 text-blue-700";
+  if (key === "DELETE") return "bg-rose-100 text-rose-700";
   if (key === "UPDATE") return "bg-amber-100 text-amber-700";
   return "bg-slate-200 text-slate-700";
 }

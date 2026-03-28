@@ -1,159 +1,44 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
 import { invalidateAuditActorCache, logAuditEvent } from "../lib/audit";
 import { useSystemSettings } from "../context/SystemSettingsContext";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import "boxicons";
-
-const SIGN_IN_TIMEOUT_MS = 20000;
-const PROFILE_TIMEOUT_MS = 8000;
-const SESSION_CHECK_TIMEOUT_MS = 3000;
-
-function withTimeout(promise, ms, label) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timeout (${ms}ms)`)), ms)),
-  ]);
-}
-
-function extractRoleNames(userData) {
-  const mappings = Array.isArray(userData?.user_roles) ? userData.user_roles : [];
-  return mappings
-    .map((item) => {
-      const roleNode = item?.roles;
-      if (Array.isArray(roleNode)) return roleNode[0]?.name;
-      return roleNode?.name;
-    })
-    .filter(Boolean)
-    .map((name) => name.toString().trim().toLowerCase());
-}
-
-function resolveRole(userData) {
-  const roles = extractRoleNames(userData);
-  if (roles.includes("admin")) return "admin";
-  if (roles.includes("membre")) return "membre";
-  return null;
-}
-
-async function resolveRoleWithFallback(userData) {
-  const nestedRole = resolveRole(userData);
-  if (nestedRole) return nestedRole;
-
-  const userId = userData?.id;
-  if (!userId) return null;
-
-  const { data: roleRows, error } = await withTimeout(
-    supabase
-      .from("user_roles")
-      .select(`
-        roles ( name )
-      `)
-      .eq("user_id", userId),
-    PROFILE_TIMEOUT_MS,
-    "login_role_fallback",
-  );
-
-  if (error) return null;
-
-  const roleNames = (roleRows || [])
-    .map((row) => {
-      const node = row?.roles;
-      if (Array.isArray(node)) return node[0]?.name;
-      return node?.name;
-    })
-    .filter(Boolean)
-    .map((name) => name.toString().trim().toLowerCase());
-
-  if (roleNames.includes("admin")) return "admin";
-  if (roleNames.includes("membre")) return "membre";
-  return null;
-}
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { signIn } = useAuth();
   const { settings } = useSystemSettings();
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
 
-  const finishRedirect = (role) => {
-    localStorage.setItem("role", role);
-    invalidateAuditActorCache();
-    if (role === "admin") navigate("/admin/dashboard", { replace: true });
-    else navigate("/member/dashboard", { replace: true });
-  };
+  function fireAndForgetAudit(payload) {
+    Promise.resolve(logAuditEvent(payload)).catch(() => {});
+  }
 
-  const loadRoleAndRedirect = async (authUserId) => {
-    const { data: userData, error: profileError } = await withTimeout(
-      supabase
-        .from("users")
-        .select(`
-          id,
-          email,
-          user_roles (
-            roles ( name )
-          )
-        `)
-        .eq("auth_id", authUserId)
-        .maybeSingle(),
-      PROFILE_TIMEOUT_MS,
-      "login_profile_query",
-    );
-
-    if (profileError || !userData) {
-      const fallbackRole = localStorage.getItem("role") || "membre";
-      finishRedirect(fallbackRole);
-      return fallbackRole;
-    }
-
-    const role = await resolveRoleWithFallback(userData);
-    const resolved = role || localStorage.getItem("role") || "membre";
-    finishRedirect(resolved);
-    return resolved;
-  };
-
-  const handleLogin = async () => {
+  async function handleLogin() {
     try {
-      setLoading(true);
+      setSubmitting(true);
       setError("");
 
-      let signedUser = null;
-      try {
-        const { data, error: authError } = await withTimeout(
-          supabase.auth.signInWithPassword({ email, password }),
-          SIGN_IN_TIMEOUT_MS,
-          "signInWithPassword",
-        );
-        if (authError) throw authError;
-        signedUser = data?.user ?? null;
-      } catch (err) {
-        if (!err?.message?.includes("signInWithPassword timeout")) throw err;
-        const { data } = await withTimeout(
-          supabase.auth.getSession(),
-          SESSION_CHECK_TIMEOUT_MS,
-          "session_after_timeout",
-        );
-        signedUser = data?.session?.user ?? null;
-        if (!signedUser) throw err;
-      }
+      const { role } = await signIn({ email, password });
+      invalidateAuditActorCache();
 
-      if (!signedUser?.id) {
-        throw new Error("Utilisateur non retourne par Supabase.");
-      }
-
-      const role = await loadRoleAndRedirect(signedUser.id);
-      await logAuditEvent({
+      fireAndForgetAudit({
         action: "LOGIN_SUCCESS",
         entity: "auth",
-        details: { role },
+        details: { role: role || "unknown" },
       });
+
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       console.error("LOGIN ERROR:", err);
-      await logAuditEvent({
+      fireAndForgetAudit({
         action: "LOGIN_FAILED",
         entity: "auth",
         details: { reason: err?.message || "unknown" },
@@ -168,9 +53,9 @@ export default function Login() {
         setError(err?.message || "Une erreur est survenue pendant la connexion.");
       }
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
-  };
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -220,7 +105,7 @@ export default function Login() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
+              disabled={submitting}
               className={`w-full p-3 rounded-lg text-slate-900 placeholder-slate-500 disabled:opacity-50 ${
                 isDark ? "bg-white/90" : "bg-slate-100"
               }`}
@@ -237,7 +122,7 @@ export default function Login() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
+              disabled={submitting}
               className={`w-full p-3 rounded-lg text-slate-900 placeholder-slate-500 disabled:opacity-50 ${
                 isDark ? "bg-white/90" : "bg-slate-100"
               }`}
@@ -253,15 +138,14 @@ export default function Login() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={submitting}
             className="w-full rounded-lg bg-blue-500 py-3 font-medium transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="inline-flex items-center gap-2">
               <box-icon name="log-in" type="solid" color="#ffffff" size="xs"></box-icon>
-              {loading ? "Connexion en cours..." : "Se connecter"}
+              {submitting ? "Connexion en cours..." : "Se connecter"}
             </span>
           </button>
-
         </form>
 
         <p className={`mt-6 text-sm text-center ${isDark ? "text-slate-200" : "text-slate-600"}`}>

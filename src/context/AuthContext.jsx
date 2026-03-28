@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { supabase } from "../lib/supabase";
 
 const AuthContext = createContext(null);
-const SESSION_TIMEOUT_MS = 12000;
+const AUTH_TIMEOUT_MS = 12000;
+const SIGN_IN_TIMEOUT_MS = 20000;
 const ROLE_TIMEOUT_MS = 7000;
 
 function withTimeout(promise, ms, label) {
@@ -24,16 +25,16 @@ function extractRoleNames(data) {
     .map((name) => name.toString().trim().toLowerCase());
 }
 
-function resolveRole(data) {
-  const roleNames = extractRoleNames(data);
-  if (roleNames.includes("admin")) return "admin";
-  if (roleNames.includes("membre")) return "membre";
+function resolveRoleFromUserData(userData) {
+  const names = extractRoleNames(userData);
+  if (names.includes("admin")) return "admin";
+  if (names.includes("membre")) return "membre";
   return null;
 }
 
 async function resolveRoleWithFallback(userData) {
-  const nested = resolveRole(userData);
-  if (nested) return nested;
+  const nestedRole = resolveRoleFromUserData(userData);
+  if (nestedRole) return nestedRole;
 
   const userId = userData?.id;
   if (!userId) return null;
@@ -46,174 +47,210 @@ async function resolveRoleWithFallback(userData) {
       `)
       .eq("user_id", userId),
     ROLE_TIMEOUT_MS,
-    "role_fallback_query",
+    "auth_role_fallback",
   );
 
   if (error) return null;
-
-  const roleNames = (roleRows || [])
+  const names = (roleRows || [])
     .map((row) => {
-      const node = row?.roles;
-      if (Array.isArray(node)) return node[0]?.name;
-      return node?.name;
+      const roleNode = row?.roles;
+      if (Array.isArray(roleNode)) return roleNode[0]?.name;
+      return roleNode?.name;
     })
     .filter(Boolean)
     .map((name) => name.toString().trim().toLowerCase());
 
-  if (roleNames.includes("admin")) return "admin";
-  if (roleNames.includes("membre")) return "membre";
+  if (names.includes("admin")) return "admin";
+  if (names.includes("membre")) return "membre";
   return null;
 }
 
+async function fetchRoleFromAuthId(authId) {
+  if (!authId) return null;
+  const { data: userData, error } = await withTimeout(
+    supabase
+      .from("users")
+      .select(`
+        id,
+        user_roles (
+          roles ( name )
+        )
+      `)
+      .eq("auth_id", authId)
+      .maybeSingle(),
+    ROLE_TIMEOUT_MS,
+    "auth_role_query",
+  );
+  if (error || !userData) return null;
+  return resolveRoleWithFallback(userData);
+}
+
 export function AuthProvider({ children }) {
+  const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState(localStorage.getItem("role"));
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const inFlightRef = useRef(null);
   const mountedRef = useRef(true);
+  const syncIdRef = useRef(0);
 
-  const setStateSafe = useCallback((nextUser, nextRole) => {
-    if (!mountedRef.current) return;
-    setUser(nextUser);
-    setRole(nextRole);
-    if (nextRole) localStorage.setItem("role", nextRole);
-    else localStorage.removeItem("role");
+  const applySession = useCallback(async (nextSession, options = {}) => {
+    const { showLoader = false } = options;
+    const syncId = ++syncIdRef.current;
+
+    if (mountedRef.current && showLoader) {
+      setLoading(true);
+      setError(null);
+    }
+
+    try {
+      const nextUser = nextSession?.user ?? null;
+      if (!mountedRef.current || syncId !== syncIdRef.current) return { user: null, role: null };
+
+      setSession(nextSession || null);
+      setUser(nextUser);
+
+      if (!nextUser) {
+        setRole(null);
+        localStorage.removeItem("role");
+        return { user: null, role: null };
+      }
+
+      const cachedRole = localStorage.getItem("role");
+      if (cachedRole) setRole(cachedRole);
+
+      const resolvedRole = await fetchRoleFromAuthId(nextUser.id);
+      const finalRole = resolvedRole || cachedRole || "membre";
+
+      if (!mountedRef.current || syncId !== syncIdRef.current) return { user: nextUser, role: finalRole };
+      setRole(finalRole);
+      localStorage.setItem("role", finalRole);
+      return { user: nextUser, role: finalRole };
+    } catch (err) {
+      if (mountedRef.current && syncId === syncIdRef.current) {
+        setError(err?.message || "Erreur d'authentification");
+      }
+      return { user: nextSession?.user ?? null, role: localStorage.getItem("role") || null };
+    } finally {
+      if (mountedRef.current && syncId === syncIdRef.current) {
+        setLoading(false);
+      }
+    }
   }, []);
 
-  const loadAuthState = useCallback(
-    async (sessionUserFromEvent = undefined, options = {}) => {
-      const { showLoader = false } = options;
-      if (inFlightRef.current) return inFlightRef.current;
+  const reloadAuth = useCallback(async (options = {}) => {
+    const { showLoader = true } = options;
+    if (mountedRef.current && showLoader) {
+      setLoading(true);
+      setError(null);
+    }
 
-      const task = (async () => {
-        try {
-          if (mountedRef.current && showLoader) {
-            setLoading(true);
-            setError(null);
-          }
+    try {
+      const { data: sessionData, error: sessionError } = await withTimeout(
+        supabase.auth.getSession(),
+        AUTH_TIMEOUT_MS,
+        "auth_getSession",
+      );
+      if (sessionError) throw sessionError;
 
-          let sessionUser = sessionUserFromEvent;
-          if (sessionUser === undefined) {
-            try {
-              const { data, error: sessionError } = await withTimeout(
-                supabase.auth.getSession(),
-                SESSION_TIMEOUT_MS,
-                "auth_getSession",
-              );
-              if (sessionError) throw sessionError;
-              sessionUser = data?.session?.user ?? null;
-            } catch (sessionErr) {
-              console.warn("[AUTH] getSession fallback getUser:", sessionErr?.message || sessionErr);
-              const { data: userData, error: userError } = await withTimeout(
-                supabase.auth.getUser(),
-                SESSION_TIMEOUT_MS,
-                "auth_getUser",
-              );
-              if (userError) throw userError;
-              sessionUser = userData?.user ?? null;
-            }
-          }
-
-          if (!sessionUser) {
-            setStateSafe(null, null);
-            return;
-          }
-
-          const localRole = localStorage.getItem("role");
-          setStateSafe(sessionUser, localRole || "membre");
-
-          const { data: userData, error: roleError } = await withTimeout(
-            supabase
-              .from("users")
-              .select(`
-                id,
-                user_roles (
-                  roles ( name )
-                )
-              `)
-              .eq("auth_id", sessionUser.id)
-              .maybeSingle(),
-            ROLE_TIMEOUT_MS,
-            "role_query",
-          );
-
-          if (roleError || !userData) {
-            return;
-          }
-
-          const resolvedRole = await resolveRoleWithFallback(userData);
-          setStateSafe(sessionUser, resolvedRole || localRole || "membre");
-        } catch (err) {
-          console.error("[AUTH] loadAuthState:", err);
-          if (mountedRef.current) {
-            setError(err.message || "Erreur d'authentification");
-          }
-        } finally {
-          inFlightRef.current = null;
-          if (mountedRef.current) {
-            setLoading(false);
-          }
+      let nextSession = sessionData?.session ?? null;
+      if (!nextSession) {
+        const { data: userData, error: userError } = await withTimeout(
+          supabase.auth.getUser(),
+          AUTH_TIMEOUT_MS,
+          "auth_getUser",
+        );
+        if (userError) throw userError;
+        if (userData?.user) {
+          nextSession = { user: userData.user };
         }
-      })();
-
-      inFlightRef.current = task;
-      return task;
-    },
-    [setStateSafe],
-  );
+      }
+      return applySession(nextSession, { showLoader: false });
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(err?.message || "Erreur d'authentification");
+        setSession(null);
+        setUser(null);
+        setRole(null);
+      }
+      return { user: null, role: null };
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  }, [applySession]);
 
   useEffect(() => {
     mountedRef.current = true;
-    loadAuthState(undefined, { showLoader: true });
+    reloadAuth({ showLoader: true });
 
-    const hardStop = setTimeout(() => {
-      if (mountedRef.current) setLoading(false);
-    }, 12000);
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      await loadAuthState(session?.user ?? null, { showLoader: false });
+    const { data: authSubscription } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+      await applySession(nextSession, { showLoader: false });
     });
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(hardStop);
-      authListener.subscription.unsubscribe();
+      authSubscription.subscription.unsubscribe();
     };
-  }, [loadAuthState]);
+  }, [applySession, reloadAuth]);
 
-  const logout = useCallback(async () => {
+  const signIn = useCallback(async ({ email, password }) => {
+    setLoading(true);
+    setError(null);
     try {
-      if (mountedRef.current) {
-        setLoading(true);
-        setError(null);
-      }
-      const { error: signOutError } = await withTimeout(
-        supabase.auth.signOut(),
-        SESSION_TIMEOUT_MS,
-        "auth_signOut",
+      const { data, error: signInError } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        SIGN_IN_TIMEOUT_MS,
+        "auth_signInWithPassword",
       );
-      if (signOutError) throw signOutError;
-      setStateSafe(null, null);
-    } catch (err) {
-      if (mountedRef.current) setError(err.message || "Erreur de deconnexion");
-      throw err;
+      if (signInError) throw signInError;
+
+      let nextSession = data?.session ?? null;
+      if (!nextSession) {
+        const { data: sessionData, error: sessionError } = await withTimeout(
+          supabase.auth.getSession(),
+          AUTH_TIMEOUT_MS,
+          "auth_post_signin_getSession",
+        );
+        if (sessionError) throw sessionError;
+        nextSession = sessionData?.session ?? null;
+      }
+
+      const resolved = await applySession(nextSession, { showLoader: false });
+      return resolved;
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, [setStateSafe]);
+  }, [applySession]);
+
+  const logout = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { error: signOutError } = await withTimeout(
+        supabase.auth.signOut(),
+        AUTH_TIMEOUT_MS,
+        "auth_signOut",
+      );
+      if (signOutError) throw signOutError;
+      await applySession(null, { showLoader: false });
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  }, [applySession]);
 
   const value = useMemo(
     () => ({
+      session,
       user,
       role,
       loading,
       error,
+      signIn,
       logout,
-      reloadAuth: loadAuthState,
+      reloadAuth,
     }),
-    [user, role, loading, error, logout, loadAuthState],
+    [session, user, role, loading, error, signIn, logout, reloadAuth],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
